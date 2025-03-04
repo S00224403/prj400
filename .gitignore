@@ -1,1 +1,2 @@
 ./edufedi-server/node_modules
+./edufedi-server/*.db
