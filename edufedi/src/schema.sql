@@ -29,4 +29,11 @@ CREATE TABLE IF NOT EXISTS keys (
   created     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
   PRIMARY KEY (user_id, type)
 );
+CREATE TABLE IF NOT EXISTS follows (
+  following_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
+  follower_id  INTEGER REFERENCES actors(id) ON DELETE CASCADE,
+  created      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
+  PRIMARY KEY (following_id, follower_id)
+);
+
 

@@ -1,9 +1,12 @@
 import {
+  Accept,
   Endpoints,
+  Follow,
   Person,
   createFederation,
   exportJwk,
   generateCryptoKeyPair,
+  getActorHandle,
   importJwk,
 } from "@fedify/fedify";
 import type { Actor, Key, User } from "./schema.ts";
@@ -134,5 +137,99 @@ federation.setActorDispatcher("/users/{identifier}", async (ctx, identifier) => 
   }
 });
 
-federation.setInboxListeners("/users/{identifier}/inbox", "/inbox");
+federation
+  .setInboxListeners("/users/{identifier}/inbox", "/inbox")
+  .on(Follow, async (ctx, follow) => {
+    try {
+      if (follow.objectId == null) {
+        logger.debug("The Follow object does not have an object: {follow}", {
+          follow,
+        });
+        return;
+      }
+
+      const object = ctx.parseUri(follow.objectId);
+      if (object == null || object.type !== "actor") {
+        logger.debug("The Follow object's object is not an actor: {follow}", {
+          follow,
+        });
+        return;
+      }
+
+      const follower = await follow.getActor();
+      if (follower?.id == null || follower.inboxId == null) {
+        logger.debug("The Follow object does not have an actor: {follow}", {
+          follow,
+        });
+        return;
+      }
+
+      // Query the database to find the actor to follow
+      const followingResult = await pool.query(
+        `
+        SELECT actors.id
+        FROM actors
+        JOIN users ON users.id = actors.user_id
+        WHERE users.username = $1
+        `,
+        [object.identifier]
+      );
+      const followingId = followingResult.rows[0]?.id;
+
+      if (followingId == null) {
+        logger.debug(
+          "Failed to find the actor to follow in the database: {object}",
+          { object }
+        );
+        return;
+      }
+
+      // Add a new follower actor record or update if it already exists
+      const followerResult = await pool.query(
+        `
+        INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (uri) DO UPDATE SET
+          handle = excluded.handle,
+          name = excluded.name,
+          inbox_url = excluded.inbox_url,
+          shared_inbox_url = excluded.shared_inbox_url,
+          url = excluded.url
+        RETURNING id
+        `,
+        [
+          follower.id.href,
+          await getActorHandle(follower),
+          follower.name?.toString(),
+          follower.inboxId.href,
+          follower.endpoints?.sharedInbox?.href,
+          follower.url?.href,
+        ]
+      );
+      const followerId = followerResult.rows[0]?.id;
+
+      // Insert the follow relationship into the database
+      await pool.query(
+        `
+        INSERT INTO follows (following_id, follower_id)
+        VALUES ($1, $2)
+        `,
+        [followingId, followerId]
+      );
+
+      // Create and send an Accept activity
+      const accept = new Accept({
+        actor: follow.objectId,
+        to: follow.actorId,
+        object: follow,
+      });
+      await ctx.sendActivity(object, follower, accept);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error handling Follow activity:", { message: error.message });
+      } else {
+        console.error("Unknown error handling Follow activity:", error);
+      }
+    }
+  });
 export default federation;
