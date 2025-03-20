@@ -12,23 +12,36 @@ app.use(federation(fedi, () => undefined))
 
 app.get("/", (c) => c.text("Hello, Fedify!"));
 app.get("/setup", async (c) => {
-    // Check if the user already exists
+  try {
+    // Query the database to check if the user already exists
     const result = await pool.query(
-        `
-        SELECT * FROM users
-        JOIN actors ON (users.id = actors.user_id)
-        LIMIT 1
-        `
+      `
+      SELECT *
+      FROM users
+      JOIN actors ON (users.id = actors.user_id)
+      LIMIT 1
+      `
     );
-    const user = result.rows[0];
+    const user = result.rows[0]; // Get the first row from the query result
+
     if (user != null) return c.redirect("/");
 
+    // Render the setup form if no user exists
     return c.html(
-        <Layout>
-            <SetupForm />
-        </Layout>,
+      <Layout>
+        <SetupForm />
+      </Layout>
     );
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in /setup handler:", error.message);
+    } else {
+      console.error("Error in /setup handler:", String(error));
+    }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
 });
+
 app.post("/setup", async (c) => {
   try {
     // Check if an account already exists
