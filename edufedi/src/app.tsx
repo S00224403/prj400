@@ -10,6 +10,7 @@ import {
   FollowerList,
   Home,
   Layout,
+  PostList,
   PostPage,  
   Profile,
   SetupForm,
@@ -194,8 +195,21 @@ app.get("/users/:username", async (c) => {
       `,
       [user.id] // Use parameterized query to prevent SQL injection
     );
-    
     const followers = followersResult.rows[0]?.followers; // Extract the count of followers
+    
+    const postsResult = await pool.query(
+      `
+      SELECT actors.*, posts.*
+      FROM posts
+      JOIN actors ON posts.actor_id = actors.id
+      WHERE actors.user_id = $1
+      ORDER BY posts.created DESC
+      `,
+      [user.user_id] // Use parameterized queries to prevent SQL injection
+    );
+    
+    const posts = postsResult.rows; // Get the rows from the query result
+    
     const url = new URL(c.req.url);
     const handle = `@${user.username}@${url.host}`;
     return c.html(
@@ -206,6 +220,7 @@ app.get("/users/:username", async (c) => {
           handle={handle}
           followers={followers}
         />
+        <PostList posts={posts} />
       </Layout>,
     );
 });
