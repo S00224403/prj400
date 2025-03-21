@@ -2,15 +2,49 @@ import { Hono } from "hono";
 import { federation } from "@fedify/fedify/x/hono";
 import { getLogger } from "@logtape/logtape";
 import fedi from "./federation.ts";
-import { FollowerList, Layout, Profile, SetupForm } from "./views.tsx";
+import { FollowerList, Home, Layout, Profile, SetupForm } from "./views.tsx";
 import pool from "./db.ts";
-import type { Actor, User } from "./schema.ts";
+import { stringifyEntities } from "stringify-entities";
+import type { Actor, Post, User } from "./schema.ts";
+import { Note } from "@fedify/fedify";
+
 const logger = getLogger("edufedi");
 
 const app = new Hono();
 app.use(federation(fedi, () => undefined))
 
-app.get("/", (c) => c.text("Hello, Fedify!"));
+app.get("/", async (c) => {
+  try {
+    // Query the database to get the user and actor data
+    const result = await pool.query(
+      `
+      SELECT users.*, actors.*
+      FROM users
+      JOIN actors ON users.id = actors.user_id
+      LIMIT 1
+      `
+    );
+
+    const user = result.rows[0]; // Get the first row from the query result
+
+    if (user == null) return c.redirect("/setup");
+
+    // Render the home page with the user data
+    return c.html(
+      <Layout>
+        <Home user={user} />
+      </Layout>
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in / handler:", error.message);
+    } else {
+      console.error("Error in / handler:", String(error));
+    }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
+});
+
 app.get("/setup", async (c) => {
   try {
     // Query the database to check if the user already exists
@@ -201,6 +235,90 @@ app.get("/users/:username/followers", async (c) => {
       console.error("Error in /users/:username/followers handler:", String(error));
     }
     return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
+});
+
+app.post("/users/:username/posts", async (c) => {
+  try {
+    const username = c.req.param("username");
+
+    // Query the database to get the actor associated with the username
+    const actorResult = await pool.query(
+      `
+      SELECT actors.*
+      FROM actors
+      JOIN users ON users.id = actors.user_id
+      WHERE users.username = $1
+      `,
+      [username]
+    );
+    const actor = actorResult.rows[0];
+    if (actor == null) return c.redirect("/setup");
+
+    // Get form data and validate content
+    const form = await c.req.formData();
+    const content = form.get("content")?.toString();
+    if (content == null || content.trim() === "") {
+      return c.text("Content is required", 400);
+    }
+
+    const ctx = fedi.createContext(c.req.raw, undefined);
+
+    let url: string | null = null;
+
+    // Start a transaction to insert the post and update its URI and URL
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Insert the post into the database
+      const postResult = await client.query(
+        `
+        INSERT INTO posts (uri, actor_id, content)
+        VALUES ('https://localhost/', $1, $2)
+        RETURNING *
+        `,
+        [actor.id, stringifyEntities(content, { escapeOnly: true })]
+      );
+      const post = postResult.rows[0];
+      if (post == null) {
+        await client.query("ROLLBACK");
+        return c.text("Failed to create post", 500);
+      }
+
+      // Generate the URI and URL for the post
+      url = ctx.getObjectUri(Note, {
+        identifier: username,
+        id: post.id.toString(),
+      }).href;
+
+      // Update the post with its URI and URL
+      await client.query(
+        `
+        UPDATE posts
+        SET uri = $1, url = $2
+        WHERE id = $3
+        `,
+        [url, url, post.id]
+      );
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    if (url == null) return c.text("Failed to create post", 500);
+    return c.redirect(url);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in /users/:username/posts handler:", error.message);
+    } else {
+      console.error("Error in /users/:username/posts handler:", String(error));
+    }
+    return c.text("Internal Server Error", 500);
   }
 });
 

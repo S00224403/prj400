@@ -2,6 +2,7 @@ import {
   Accept,
   Endpoints,
   Follow,
+  Note,  
   Person,
   Undo,
   createFederation,
@@ -9,7 +10,7 @@ import {
   generateCryptoKeyPair,
   getActorHandle,
   importJwk,
-  type Recipient,  
+  type Recipient,
 } from "@fedify/fedify";
 import type { Actor, Key, User } from "./schema.ts";
 import { getLogger } from "@logtape/logtape";
@@ -300,7 +301,11 @@ federation
 
         return { items };
       } catch (error) {
-        console.error("Error in setFollowersDispatcher:", error.message);
+        if (error instanceof Error) {
+          console.error("Error in setFollowersDispatcher:", error.message);
+        } else {
+          console.error("Unknown error in setFollowersDispatcher:", error);
+        }
         return { items: [] }; // Return an empty list in case of an error
       }
     }
@@ -329,5 +334,12 @@ federation
       return 0; // Return 0 in case of an error
     }
   });
- 
+
+federation.setObjectDispatcher(
+    Note,
+    "/users/{identifier}/posts/{id}",
+    (ctx, values) => {
+      return null;
+    },
+  );
 export default federation;

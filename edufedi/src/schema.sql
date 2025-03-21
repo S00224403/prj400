@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     trim(lower(username)) = username AND username <> '' AND length(username) <= 50
   )
 );
+
 CREATE TABLE IF NOT EXISTS actors (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS actors (
   ),
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL)
 );
+
 CREATE TABLE IF NOT EXISTS keys (
   user_id     INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   type        TEXT    NOT NULL CHECK (type IN ('RSASSA-PKCS1-v1_5', 'Ed25519')),
@@ -29,11 +31,22 @@ CREATE TABLE IF NOT EXISTS keys (
   created     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
   PRIMARY KEY (user_id, type)
 );
+
 CREATE TABLE IF NOT EXISTS follows (
   following_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
   follower_id  INTEGER REFERENCES actors(id) ON DELETE CASCADE,
   created      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
   PRIMARY KEY (following_id, follower_id)
 );
+
+CREATE TABLE IF NOT EXISTS posts (
+  id SERIAL PRIMARY KEY,
+  uri TEXT NOT NULL UNIQUE CHECK (uri <> ''),
+  actor_id INTEGER NOT NULL REFERENCES actors(id) ON DELETE CASCADE,
+  content TEXT NOT NULL CHECK (content <> ''),
+  url TEXT CHECK (url LIKE 'https://%' OR url LIKE 'http://%'),
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL)
+);
+
 
 
