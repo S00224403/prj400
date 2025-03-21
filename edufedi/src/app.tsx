@@ -41,7 +41,7 @@ app.get("/setup", async (c) => {
     return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
   }
 });
-
+//#region Account setup handlers
 app.post("/setup", async (c) => {
   try {
     // Check if an account already exists
@@ -131,7 +131,7 @@ app.post("/setup", async (c) => {
     return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
   }
 });
-
+//#endregion Account setup handlers
 app.get("/users/:username", async (c) => {
     const result = await pool.query(
         `

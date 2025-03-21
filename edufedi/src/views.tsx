@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-
+import type { Actor } from "./schema.ts";
 export const Layout: FC = (props) => (
   <html lang="en">
     <head>

@@ -3,6 +3,7 @@ import {
   Endpoints,
   Follow,
   Person,
+  Undo,  
   createFederation,
   exportJwk,
   generateCryptoKeyPair,
@@ -231,5 +232,37 @@ federation
         console.error("Unknown error handling Follow activity:", error);
       }
     }
-  });
+  })
+  .on(Undo, async (ctx, undo) => {
+    try {
+      const object = await undo.getObject();
+      if (!(object instanceof Follow)) return;
+      if (undo.actorId == null || object.objectId == null) return;
+  
+      const parsed = ctx.parseUri(object.objectId);
+      if (parsed == null || parsed.type !== "actor") return;
+  
+      // Delete the follow relationship from the database
+      await pool.query(
+        `
+        DELETE FROM follows
+        WHERE following_id = (
+          SELECT actors.id
+          FROM actors
+          JOIN users ON actors.user_id = users.id
+          WHERE users.username = $1
+        ) AND follower_id = (
+          SELECT id FROM actors WHERE uri = $2
+        )
+        `,
+        [parsed.identifier, undo.actorId.href]
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error handling Undo activity:", error.message);
+      } else {
+        console.error("Unknown error handling Undo activity:", error);
+      }
+    }
+  });  
 export default federation;
