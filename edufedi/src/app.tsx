@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { federation } from "@fedify/fedify/x/hono";
 import { getLogger } from "@logtape/logtape";
 import fedi from "./federation.ts";
-import { Layout, Profile, SetupForm } from "./views.tsx";
+import { FollowerList, Layout, Profile, SetupForm } from "./views.tsx";
 import pool from "./db.ts";
 import type { Actor, User } from "./schema.ts";
 const logger = getLogger("edufedi");
@@ -42,6 +42,7 @@ app.get("/setup", async (c) => {
   }
 });
 //#region Account setup handlers
+
 app.post("/setup", async (c) => {
   try {
     // Check if an account already exists
@@ -144,12 +145,63 @@ app.get("/users/:username", async (c) => {
     const user = result.rows[0];
     if (user == null) return c.notFound();
 
+    const followersResult = await pool.query(
+      `
+      SELECT count(*) AS followers
+      FROM follows
+      JOIN actors ON follows.following_id = actors.id
+      WHERE actors.id = $1
+      `,
+      [user.id] // Use parameterized query to prevent SQL injection
+    );
+    
+    const followers = followersResult.rows[0]?.followers; // Extract the count of followers
     const url = new URL(c.req.url);
     const handle = `@${user.username}@${url.host}`;
     return c.html(
-        <Layout>
-            <Profile name={user.name ?? user.username} handle={handle} />
-        </Layout>,
+      <Layout>
+        <Profile
+          name={user.name ?? user.username}
+          username={user.username}
+          handle={handle}
+          followers={followers}
+        />
+      </Layout>,
     );
 });
+
+app.get("/users/:username/followers", async (c) => {
+  try {
+    // Query the database to get the followers of the user
+    const result = await pool.query(
+      `
+      SELECT followers.*
+      FROM follows
+      JOIN actors AS followers ON follows.follower_id = followers.id
+      JOIN actors AS following ON follows.following_id = following.id
+      JOIN users ON users.id = following.user_id
+      WHERE users.username = $1
+      ORDER BY follows.created DESC
+      `,
+      [c.req.param("username")] // Use parameterized query to prevent SQL injection
+    );
+
+    const followers = result.rows; // Get the rows from the query result
+
+    // Render the follower list page with the retrieved followers
+    return c.html(
+      <Layout>
+        <FollowerList followers={followers} />
+      </Layout>
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in /users/:username/followers handler:", error.message);
+    } else {
+      console.error("Error in /users/:username/followers handler:", String(error));
+    }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
+});
+
 export default app;
