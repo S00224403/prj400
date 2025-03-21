@@ -5,7 +5,7 @@ import fedi from "./federation.ts";
 import pool from "./db.ts";
 import { stringifyEntities } from "stringify-entities";
 import type { Actor, Post, User } from "./schema.ts";
-import { Note } from "@fedify/fedify";
+import { Create, Note } from "@fedify/fedify";
 import {
   FollowerList,
   Home,
@@ -270,7 +270,7 @@ app.post("/users/:username/posts", async (c) => {
 
     const ctx = fedi.createContext(c.req.raw, undefined);
 
-    let url: string | null = null;
+    let post: Post | null = null;
 
     // Start a transaction to insert the post and update its URI and URL
     const client = await pool.connect();
@@ -286,14 +286,14 @@ app.post("/users/:username/posts", async (c) => {
         `,
         [actor.id, stringifyEntities(content, { escapeOnly: true })]
       );
-      const post = postResult.rows[0];
+      post = postResult.rows[0];
       if (post == null) {
         await client.query("ROLLBACK");
         return c.text("Failed to create post", 500);
       }
 
       // Generate the URI and URL for the post
-      url = ctx.getObjectUri(Note, {
+      const url = ctx.getObjectUri(Note, {
         identifier: username,
         id: post.id.toString(),
       }).href;
@@ -316,8 +316,26 @@ app.post("/users/:username/posts", async (c) => {
       client.release();
     }
 
-    if (url == null) return c.text("Failed to create post", 500);
-    return c.redirect(url);
+    if (post == null) return c.text("Failed to create post", 500);
+
+    // Generate Note object arguments
+    const noteArgs = { identifier: username, id: post.id.toString() };
+    const note = await ctx.getObject(Note, noteArgs);
+
+    // Send Create activity to followers
+    await ctx.sendActivity(
+      { identifier: username },
+      "followers",
+      new Create({
+        id: new URL("#activity", note?.id ?? undefined),
+        object: note,
+        actors: note?.attributionIds,
+        tos: note?.toIds,
+        ccs: note?.ccIds,
+      })
+    );
+
+    return c.redirect(ctx.getObjectUri(Note, noteArgs).href);
   } catch (error) {
     if (error instanceof Error) {
       console.error("Error in /users/:username/posts handler:", error.message);
@@ -327,6 +345,7 @@ app.post("/users/:username/posts", async (c) => {
     return c.text("Internal Server Error", 500);
   }
 });
+
 app.get("/users/:username/posts/:id", async (c) => {
   try {
     // Query the database to fetch the post along with actor and user data
