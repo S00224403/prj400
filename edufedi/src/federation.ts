@@ -3,12 +3,13 @@ import {
   Endpoints,
   Follow,
   Person,
-  Undo,  
+  Undo,
   createFederation,
   exportJwk,
   generateCryptoKeyPair,
   getActorHandle,
   importJwk,
+  type Recipient,  
 } from "@fedify/fedify";
 import type { Actor, Key, User } from "./schema.ts";
 import { getLogger } from "@logtape/logtape";
@@ -51,6 +52,7 @@ federation.setActorDispatcher("/users/{identifier}", async (ctx, identifier) => 
       url: ctx.getActorUri(identifier),
       publicKey: keys[0].cryptographicKey,
       assertionMethods: keys.map((k) => k.multikey),
+      followers: ctx.getFollowersUri(identifier),
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -264,5 +266,68 @@ federation
         console.error("Unknown error handling Undo activity:", error);
       }
     }
-  });  
+  }); 
+federation
+  .setFollowersDispatcher(
+    "/users/{identifier}/followers",
+    async (ctx, identifier, cursor) => {
+      try {
+        // Query the database to get followers for the user
+        const followersResult = await pool.query(
+          `
+          SELECT followers.*
+          FROM follows
+          JOIN actors AS followers ON follows.follower_id = followers.id
+          JOIN actors AS following ON follows.following_id = following.id
+          JOIN users ON users.id = following.user_id
+          WHERE users.username = $1
+          ORDER BY follows.created DESC
+          `,
+          [identifier] // Use parameterized queries to prevent SQL injection
+        );
+
+        const followers = followersResult.rows;
+
+        // Map the followers to Recipient objects
+        const items: Recipient[] = followers.map((f) => ({
+          id: new URL(f.uri),
+          inboxId: new URL(f.inbox_url),
+          endpoints:
+            f.shared_inbox_url == null
+              ? null
+              : { sharedInbox: new URL(f.shared_inbox_url) },
+        }));
+
+        return { items };
+      } catch (error) {
+        console.error("Error in setFollowersDispatcher:", error.message);
+        return { items: [] }; // Return an empty list in case of an error
+      }
+    }
+  )
+  .setCounter(async (ctx, identifier) => {
+    try {
+      // Query the database to count the number of followers for the user
+      const result = await pool.query(
+        `
+        SELECT count(*) AS cnt
+        FROM follows
+        JOIN actors ON actors.id = follows.following_id
+        JOIN users ON users.id = actors.user_id
+        WHERE users.username = $1
+        `,
+        [identifier] // Use parameterized queries to prevent SQL injection
+      );
+
+      return result.rows[0]?.cnt ?? 0; // Return the count or 0 if no result is found
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error in setCounter:", error.message);
+      } else {
+        console.error("Unknown error in setCounter:", error);
+      }
+      return 0; // Return 0 in case of an error
+    }
+  });
+ 
 export default federation;
