@@ -2,7 +2,8 @@ import {
   Accept,
   Endpoints,
   Follow,
-  Note,  
+  Note,
+  PUBLIC_COLLECTION,  
   Person,
   Undo,
   createFederation,
@@ -12,10 +13,16 @@ import {
   importJwk,
   type Recipient,
 } from "@fedify/fedify";
-import type { Actor, Key, User } from "./schema.ts";
+import type {
+  Actor,
+  Key,
+  Post,  
+  User,
+} from "./schema.ts";
 import { getLogger } from "@logtape/logtape";
 import { MemoryKvStore, InProcessMessageQueue } from "@fedify/fedify";
 import pool from "./db.ts"; // PostgreSQL connection pool
+import { Temporal } from "@js-temporal/polyfill";
 const logger = getLogger("edufedi");
 
 const federation = createFederation({
@@ -335,11 +342,52 @@ federation
     }
   });
 
-federation.setObjectDispatcher(
+  federation.setObjectDispatcher(
     Note,
     "/users/{identifier}/posts/{id}",
-    (ctx, values) => {
-      return null;
-    },
-  );
+    async (ctx, values) => {
+      try {
+        // Query the database to fetch the post
+        const postResult = await pool.query(
+          `
+          SELECT posts.*
+          FROM posts
+          JOIN actors ON actors.id = posts.actor_id
+          JOIN users ON users.id = actors.user_id
+          WHERE users.username = $1 AND posts.id = $2
+          `,
+          [values.identifier, values.id] // Use parameterized queries to prevent SQL injection
+        );
+  
+        const post = postResult.rows[0]; // Get the first row from the query result
+  
+        if (post == null) return null;
+  
+        // Convert the created field to ISO format if necessary
+        const createdTimestamp =
+          typeof post.created === "string"
+            ? post.created.replace(" ", "T") + "Z"
+            : post.created.toISOString(); // Handle Date objects
+  
+        // Create and return a new Note object based on the query result
+        return new Note({
+          id: ctx.getObjectUri(Note, values),
+          attribution: ctx.getActorUri(values.identifier),
+          to: PUBLIC_COLLECTION,
+          cc: ctx.getFollowersUri(values.identifier),
+          content: post.content,
+          mediaType: "text/html",
+          published: Temporal.Instant.from(createdTimestamp), // Use Temporal.Instant.from()
+          url: ctx.getObjectUri(Note, values),
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error in setObjectDispatcher:", error.message);
+        } else {
+          console.error("Unknown error in setObjectDispatcher:", error);
+        }
+        return null; // Return null if there is an error
+      }
+    }
+  );  
 export default federation;

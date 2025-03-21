@@ -2,12 +2,18 @@ import { Hono } from "hono";
 import { federation } from "@fedify/fedify/x/hono";
 import { getLogger } from "@logtape/logtape";
 import fedi from "./federation.ts";
-import { FollowerList, Home, Layout, Profile, SetupForm } from "./views.tsx";
 import pool from "./db.ts";
 import { stringifyEntities } from "stringify-entities";
 import type { Actor, Post, User } from "./schema.ts";
 import { Note } from "@fedify/fedify";
-
+import {
+  FollowerList,
+  Home,
+  Layout,
+  PostPage,  
+  Profile,
+  SetupForm,
+} from "./views.tsx";
 const logger = getLogger("edufedi");
 
 const app = new Hono();
@@ -319,6 +325,55 @@ app.post("/users/:username/posts", async (c) => {
       console.error("Error in /users/:username/posts handler:", String(error));
     }
     return c.text("Internal Server Error", 500);
+  }
+});
+app.get("/users/:username/posts/:id", async (c) => {
+  try {
+    // Query the database to fetch the post along with actor and user data
+    const postResult = await pool.query(
+      `
+      SELECT users.*, actors.*, posts.*
+      FROM posts
+      JOIN actors ON actors.id = posts.actor_id
+      JOIN users ON users.id = actors.user_id
+      WHERE users.username = $1 AND posts.id = $2
+      `,
+      [c.req.param("username"), c.req.param("id")] // Use parameterized queries to prevent SQL injection
+    );
+    const post = postResult.rows[0]; // Get the first row from the query result
+
+    if (post == null) return c.notFound();
+
+    // Query the database to count followers for the actor associated with the post
+    const followersResult = await pool.query(
+      `
+      SELECT count(*) AS followers
+      FROM follows
+      WHERE follows.following_id = $1
+      `,
+      [post.actor_id] // Use parameterized queries to prevent SQL injection
+    );
+    const followers = followersResult.rows[0]?.followers ?? 0; // Extract the count of followers or default to 0
+
+    // Render the post page with the retrieved data
+    return c.html(
+      <Layout>
+        <PostPage
+          name={post.name ?? post.username}
+          username={post.username}
+          handle={post.handle}
+          followers={followers}
+          post={post}
+        />
+      </Layout>
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in /users/:username/posts/:id handler:", error.message);
+    } else {
+      console.error("Error in /users/:username/posts/:id handler:", String(error));
+    }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
   }
 });
 
