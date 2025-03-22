@@ -441,7 +441,10 @@ app.get("/users/:username/posts/:id", async (c) => {
   }
 });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> c0488885982b94c232fb02c0d15b51e653393b8e
 app.post("/users/:username/following", async (c) => {
   const username = c.req.param("username");
   const form = await c.req.formData();
