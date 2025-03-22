@@ -5,13 +5,19 @@ import fedi from "./federation.ts";
 import pool from "./db.ts";
 import { stringifyEntities } from "stringify-entities";
 import type { Actor, Post, User } from "./schema.ts";
-import { Create, Note } from "@fedify/fedify";
+import {
+  Create,
+  Follow,        
+  isActor,       
+  Note,
+} from "@fedify/fedify";
 import {
   FollowerList,
+  FollowingList,  
   Home,
   Layout,
   PostList,
-  PostPage,  
+  PostPage,
   Profile,
   SetupForm,
 } from "./views.tsx";
@@ -407,6 +413,60 @@ app.get("/users/:username/posts/:id", async (c) => {
     } else {
       console.error("Error in /users/:username/posts/:id handler:", String(error));
     }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
+});
+
+app.post("/users/:username/following", async (c) => {
+  const username = c.req.param("username");
+  const form = await c.req.formData();
+  const handle = form.get("actor");
+  if (typeof handle !== "string") {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  const ctx = fedi.createContext(c.req.raw, undefined);
+  const actor = await ctx.lookupObject(handle.trim());
+  if (!isActor(actor)) {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  await ctx.sendActivity(
+    { identifier: username },
+    actor,
+    new Follow({
+      actor: ctx.getActorUri(username),
+      object: actor.id,
+      to: actor.id,
+    }),
+  );
+  return c.text("Successfully sent a follow request");
+});
+
+app.get("/users/:username/following", async (c) => {
+  try {
+    // Query the database to get the actors the user is following
+    const result = await pool.query(
+      `
+      SELECT following.*
+      FROM follows
+      JOIN actors AS followers ON follows.follower_id = followers.id
+      JOIN actors AS following ON follows.following_id = following.id
+      JOIN users ON users.id = followers.user_id
+      WHERE users.username = $1
+      ORDER BY follows.created DESC
+      `,
+      [c.req.param("username")] // Use parameterized queries to prevent SQL injection
+    );
+
+    const following = result.rows; // Get the rows from the query result
+
+    // Render the following list page with the retrieved data
+    return c.html(
+      <Layout>
+        <FollowingList following={following} />
+      </Layout>
+    );
+  } catch (error) {
+    console.error("Error in /users/:username/following handler:", (error as Error).message);
     return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
   }
 });

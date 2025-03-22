@@ -121,6 +121,18 @@ export const Home: FC<HomeProps> = ({ user }) => (
         <a href={`/users/${user.username}`}>{user.name}'s profile</a>
       </p>
     </hgroup>
+    <form method="post" action={`/users/${user.username}/following`}>
+      {/* biome-ignore lint/a11y/noRedundantRoles: PicoCSS requires role=group */}
+      <fieldset role="group">
+        <input
+          type="text"
+          name="actor"
+          required={true}
+          placeholder="Enter an actor handle (e.g., @johndoe@mastodon.com) or URI (e.g., https://mastodon.com/@johndoe)"
+        />
+        <input type="submit" value="Follow" />
+      </fieldset>
+    </form>
     <form method="post" action={`/users/${user.username}/posts`}>
       <fieldset>
         <label>
@@ -178,5 +190,22 @@ export const PostList: FC<PostListProps> = ({ posts }) => (
         <PostView post={post} />
       </div>
     ))}
+  </>
+);
+
+export interface FollowingListProps {
+  following: Actor[];
+}
+
+export const FollowingList: FC<FollowingListProps> = ({ following }) => (
+  <>
+    <h2>Following</h2>
+    <ul>
+      {following.map((actor) => (
+        <li key={actor.id}>
+          <ActorLink actor={actor} />
+        </li>
+      ))}
+    </ul>
   </>
 );
