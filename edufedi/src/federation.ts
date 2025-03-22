@@ -3,7 +3,7 @@ import {
   Endpoints,
   Follow,
   Note,
-  PUBLIC_COLLECTION,  
+  PUBLIC_COLLECTION,
   Person,
   Undo,
   createFederation,
@@ -11,6 +11,8 @@ import {
   generateCryptoKeyPair,
   getActorHandle,
   importJwk,
+  isActor,                
+  type Actor as APActor,  
   type Recipient,
 } from "@fedify/fedify";
 import type {
@@ -195,29 +197,16 @@ federation
         return;
       }
 
-      // Add a new follower actor record or update if it already exists
-      const followerResult = await pool.query(
-        `
-        INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (uri) DO UPDATE SET
-          handle = excluded.handle,
-          name = excluded.name,
-          inbox_url = excluded.inbox_url,
-          shared_inbox_url = excluded.shared_inbox_url,
-          url = excluded.url
-        RETURNING id
-        `,
-        [
-          follower.id.href,
-          await getActorHandle(follower),
-          follower.name?.toString(),
-          follower.inboxId.href,
-          follower.endpoints?.sharedInbox?.href,
-          follower.url?.href,
-        ]
-      );
-      const followerId = followerResult.rows[0]?.id;
+      // Use persistActor to insert or update the follower actor record
+      const followerId = (await persistActor(follower))?.id;
+
+      if (followerId == null) {
+        logger.debug(
+          "Failed to persist the follower in the database: {follower}",
+          { follower }
+        );
+        return;
+      }
 
       // Insert the follow relationship into the database
       await pool.query(
@@ -274,7 +263,46 @@ federation
         console.error("Unknown error handling Undo activity:", error);
       }
     }
-  }); 
+  })
+  .on(Accept, async (ctx, accept) => {
+    try {
+      const follow = await accept.getObject();
+      if (!(follow instanceof Follow)) return;
+  
+      const following = await accept.getActor();
+      if (!isActor(following)) return;
+  
+      const follower = follow.actorId;
+      if (follower == null) return;
+  
+      const parsed = ctx.parseUri(follower);
+      if (parsed == null || parsed.type !== "actor") return;
+  
+      // Persist the actor being followed
+      const followingId = (await persistActor(following))?.id;
+      if (followingId == null) return;
+  
+      // Insert the follow relationship into the database
+      await pool.query(
+        `
+        INSERT INTO follows (following_id, follower_id)
+        VALUES (
+          $1,
+          (
+            SELECT actors.id
+            FROM actors
+            JOIN users ON actors.user_id = users.id
+            WHERE users.username = $2
+          )
+        )
+        `,
+        [followingId, parsed.identifier] // Use parameterized queries to prevent SQL injection
+      );
+    } catch (error) {
+      console.error("Error handling Accept activity:", (error as Error).message);
+    }
+  });
+  
 federation
   .setFollowersDispatcher(
     "/users/{identifier}/followers",
@@ -389,5 +417,42 @@ federation
         return null; // Return null if there is an error
       }
     }
-  );  
+  );
+  async function persistActor(actor: APActor): Promise<Actor | null> {
+    if (actor.id == null || actor.inboxId == null) {
+      logger.debug("Actor is missing required fields: {actor}", { actor });
+      return null;
+    }
+  
+    try {
+      const result = await pool.query(
+        `
+        -- Add a new actor record or update if it already exists
+        INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (uri) DO UPDATE SET
+          handle = excluded.handle,
+          name = excluded.name,
+          inbox_url = excluded.inbox_url,
+          shared_inbox_url = excluded.shared_inbox_url,
+          url = excluded.url
+        RETURNING *
+        `,
+        [
+          actor.id.href,
+          await getActorHandle(actor),
+          actor.name?.toString(),
+          actor.inboxId.href,
+          actor.endpoints?.sharedInbox?.href,
+          actor.url?.href,
+        ]
+      );
+  
+      return result.rows[0] ?? null; // Return the first row or null if no row is returned
+    } catch (error) {
+      console.error("Error persisting actor:", (error as Error).message);
+      return null; // Return null if there is an error
+    }
+  }
+  
 export default federation;

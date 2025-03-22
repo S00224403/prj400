@@ -5,13 +5,19 @@ import fedi from "./federation.ts";
 import pool from "./db.ts";
 import { stringifyEntities } from "stringify-entities";
 import type { Actor, Post, User } from "./schema.ts";
-import { Create, Note } from "@fedify/fedify";
+import {
+  Create,
+  Follow,        
+  isActor,       
+  Note,
+} from "@fedify/fedify";
 import {
   FollowerList,
+  FollowingList,  
   Home,
   Layout,
   PostList,
-  PostPage,  
+  PostPage,
   Profile,
   SetupForm,
 } from "./views.tsx";
@@ -175,17 +181,20 @@ app.post("/setup", async (c) => {
 });
 //#endregion Account setup handlers
 app.get("/users/:username", async (c) => {
+  try {
+    // Query the database to get user and actor data
     const result = await pool.query(
-        `
-        SELECT * FROM users
-        JOIN actors ON (users.id = actors.user_id)
-        WHERE username = $1
-        `,
-        [c.req.param("username")]
+      `
+      SELECT * FROM users
+      JOIN actors ON (users.id = actors.user_id)
+      WHERE username = $1
+      `,
+      [c.req.param("username")]
     );
     const user = result.rows[0];
     if (user == null) return c.notFound();
 
+    // Query the database to count followers
     const followersResult = await pool.query(
       `
       SELECT count(*) AS followers
@@ -195,8 +204,21 @@ app.get("/users/:username", async (c) => {
       `,
       [user.id] // Use parameterized query to prevent SQL injection
     );
-    const followers = followersResult.rows[0]?.followers; // Extract the count of followers
-    
+    const followers = followersResult.rows[0]?.followers ?? 0; // Extract the count of followers or default to 0
+
+    // Query the database to count following
+    const followingResult = await pool.query(
+      `
+      SELECT count(*) AS following
+      FROM follows
+      JOIN actors ON follows.follower_id = actors.id
+      WHERE actors.id = $1
+      `,
+      [user.id] // Use parameterized query to prevent SQL injection
+    );
+    const following = followingResult.rows[0]?.following ?? 0; // Extract the count of following or default to 0
+
+    // Query the database to fetch posts by the user
     const postsResult = await pool.query(
       `
       SELECT actors.*, posts.*
@@ -207,11 +229,12 @@ app.get("/users/:username", async (c) => {
       `,
       [user.user_id] // Use parameterized queries to prevent SQL injection
     );
-    
     const posts = postsResult.rows; // Get the rows from the query result
-    
+
     const url = new URL(c.req.url);
     const handle = `@${user.username}@${url.host}`;
+
+    // Render the profile page with user data, follower/following counts, and posts
     return c.html(
       <Layout>
         <Profile
@@ -219,10 +242,15 @@ app.get("/users/:username", async (c) => {
           username={user.username}
           handle={handle}
           followers={followers}
+          following={following}
         />
         <PostList posts={posts} />
-      </Layout>,
+      </Layout>
     );
+  } catch (error) {
+    console.error("Error in /users/:username handler:", (error as Error).message);
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
 });
 
 app.get("/users/:username/followers", async (c) => {
@@ -378,16 +406,17 @@ app.get("/users/:username/posts/:id", async (c) => {
 
     if (post == null) return c.notFound();
 
-    // Query the database to count followers for the actor associated with the post
-    const followersResult = await pool.query(
+    // Query the database to calculate following and followers counts for the actor associated with the post
+    const countsResult = await pool.query(
       `
-      SELECT count(*) AS followers
+      SELECT 
+        sum(follows.follower_id = $1) AS following,
+        sum(follows.following_id = $1) AS followers
       FROM follows
-      WHERE follows.following_id = $1
       `,
       [post.actor_id] // Use parameterized queries to prevent SQL injection
     );
-    const followers = followersResult.rows[0]?.followers ?? 0; // Extract the count of followers or default to 0
+    const { following, followers } = countsResult.rows[0] ?? { following: 0, followers: 0 }; // Extract counts or default to 0
 
     // Render the post page with the retrieved data
     return c.html(
@@ -396,6 +425,7 @@ app.get("/users/:username/posts/:id", async (c) => {
           name={post.name ?? post.username}
           username={post.username}
           handle={post.handle}
+          following={following}
           followers={followers}
           post={post}
         />
@@ -407,6 +437,61 @@ app.get("/users/:username/posts/:id", async (c) => {
     } else {
       console.error("Error in /users/:username/posts/:id handler:", String(error));
     }
+    return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
+  }
+});
+
+
+app.post("/users/:username/following", async (c) => {
+  const username = c.req.param("username");
+  const form = await c.req.formData();
+  const handle = form.get("actor");
+  if (typeof handle !== "string") {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  const ctx = fedi.createContext(c.req.raw, undefined);
+  const actor = await ctx.lookupObject(handle.trim());
+  if (!isActor(actor)) {
+    return c.text("Invalid actor handle or URL", 400);
+  }
+  await ctx.sendActivity(
+    { identifier: username },
+    actor,
+    new Follow({
+      actor: ctx.getActorUri(username),
+      object: actor.id,
+      to: actor.id,
+    }),
+  );
+  return c.text("Successfully sent a follow request");
+});
+
+app.get("/users/:username/following", async (c) => {
+  try {
+    // Query the database to get the actors the user is following
+    const result = await pool.query(
+      `
+      SELECT following.*
+      FROM follows
+      JOIN actors AS followers ON follows.follower_id = followers.id
+      JOIN actors AS following ON follows.following_id = following.id
+      JOIN users ON users.id = followers.user_id
+      WHERE users.username = $1
+      ORDER BY follows.created DESC
+      `,
+      [c.req.param("username")] // Use parameterized queries to prevent SQL injection
+    );
+
+    const following = result.rows; // Get the rows from the query result
+
+    // Render the following list page with the retrieved data
+    return c.html(
+      <Layout>
+        <FollowingList following={following} />
+      </Layout>
+    );
+  } catch (error) {
+    console.error("Error in /users/:username/following handler:", (error as Error).message);
     return c.text("Internal Server Error", 500); // Return a proper HTTP response for debugging purposes
   }
 });
