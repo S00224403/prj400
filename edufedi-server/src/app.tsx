@@ -47,7 +47,7 @@ app.get("/users/:username/posts", async (c) => {
     const username = c.req.param("username");
     const result = await pool.query(
       `
-      SELECT posts.*, users.username
+      SELECT posts.*, users.username, actors.name
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id

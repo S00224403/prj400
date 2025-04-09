@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Container,
   Typography,
@@ -11,11 +10,26 @@ import {
   CardContent,
   CardActions,
   Box,
+  Avatar,
+  Link,
+  Stack,
+  IconButton,
+  Menu,
+  MenuItem,
 } from "@mui/material";
-import { Post } from "../interface";
-
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import HomeIcon from "@mui/icons-material/Home";
+import DescriptionIcon from "@mui/icons-material/Description";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import RepeatIcon from "@mui/icons-material/Repeat";
+import ReplyIcon from "@mui/icons-material/Reply";
+import axios from "axios";
+import { Post } from "../interface"
 const Homepage: React.FC = (): React.ReactElement => {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     // Fetch posts from the backend API
@@ -25,83 +39,195 @@ const Homepage: React.FC = (): React.ReactElement => {
       .catch((error) => console.error("Error fetching posts:", error));
   }, []);
 
-  const handleAddPost = () => {
-    console.log("Add Post button clicked");
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
 
   return (
-    <Container>
+    <Container maxWidth="xl" sx={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
       <AppBar position="static">
         <Toolbar>
-          {/* Logo Image */}
           <Box component="img" src="/logo.png" alt="Logo" sx={{ width: 50, height: 50, marginRight: 2 }} />
           <Typography variant="h6" style={{ flexGrow: 1 }}>
             EduFedi
           </Typography>
-          <Button color="inherit">Login</Button>
+          {/* Conditional Login/Profile */}
+          {isLoggedIn ? (
+            <>
+              <IconButton color="inherit" onClick={handleMenuOpen}>
+                <AccountCircleIcon />
+              </IconButton>
+              <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                <MenuItem onClick={handleMenuClose}>My Profile</MenuItem>
+                <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
+                <MenuItem onClick={() => setIsLoggedIn(false)}>Logout</MenuItem>
+              </Menu>
+            </>
+          ) : (
+            <Button color="inherit" onClick={() => console.log("Login clicked")}>
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
       {/* Main Content */}
-      <Grid container spacing={3} style={{ marginTop: "20px" }}>
-        <Grid size={{xs: 12, md: 3}}>
+      <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
+        {/* Sidebar */}
+        <Box
+          sx={{
+            width: { xs: "100%", md: "25%" },
+            padding: "20px",
+            borderRight: "1px solid #ccc",
+            height: "calc(100vh - 128px)", // Account for header and footer
+          }}
+        >
           <Typography variant="h6">Navigation</Typography>
-          <Button fullWidth variant="contained" color="primary" href="/timeline">
+          <Button
+            fullWidth
+            variant="text"
+            href="/timeline"
+            startIcon={<HomeIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
             EduFedi Timeline
           </Button>
-          <Button fullWidth variant="contained" color="secondary" href="/research">
+          <Button
+            fullWidth
+            variant="text"
+            href="/research"
+            startIcon={<DescriptionIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
             Research Papers
           </Button>
-          <Button fullWidth variant="contained" color="success" href="/notifications">
+          <Button
+            fullWidth
+            variant="text"
+            href="/notifications"
+            startIcon={<NotificationsIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04)",
+              },
+            }}
+          >
             Notifications
           </Button>
-        </Grid>
+
+          {/* User Profile Summary */}
+          <Box sx={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
+            <Typography variant="subtitle1">User Profile</Typography>
+            <Typography variant="body2">Username: johndoe</Typography>
+            <Typography variant="body2">Posts: 10</Typography>
+            <Typography variant="body2">Followers: 25</Typography>
+          </Box>
+        </Box>
 
         {/* Timeline */}
-        <Grid size={{xs: 12, md: 9}}>
-          {/* Add Post Button */}
-          <Button
-            variant="contained"
-            color="primary"
-            style={{ marginBottom: "20px" }}
-            onClick={handleAddPost}
-          >
-            Add Post
-          </Button>
+        <Box
+          sx={{
+            width: { xs: "100%", md: "50%" },
+            overflowY: "auto",
+            height: "calc(100vh - 128px)", // Account for header and footer
+            paddingX: "20px",
+            marginY: "20px",
+          }}
+        >
+          {posts.map((post) => (
+            <Card key={post.id} style={{ marginBottom: "20px", padding: "10px", borderRadius: "10px" }}>
+              <CardContent>
+                {/* User Info */}
+                <Box display="flex" alignItems="center" marginBottom={1}>
+                  <Avatar sx={{ marginRight: 2 }}>{post.username[0]}</Avatar> {/* Placeholder Avatar */}
+                  <Box>
+                    <Typography variant="subtitle1">{post.name}</Typography> {/* Display name */}
+                    <Typography variant="subtitle2">@{post.username}</Typography> {/* Display username */}
+                  </Box>
+                </Box>
 
-          {/* Timeline Header */}
-          <Typography variant="h5">EduFedi Timeline</Typography>
+                {/* Post Content */}
+                <Typography variant="body1" style={{ marginBottom: "10px" }}>
+                  {post.content}
+                </Typography>
 
-          {/* Posts */}
-          {posts.length > 0 ? (
-            posts.map((post) => (
-              <Card key={post.id} style={{ marginBottom: "20px" }}>
-                <CardContent>
-                  <Typography variant="subtitle1">@{post.username}</Typography> {/* Replace actor_id with username if available */}
-                  <Typography variant="body1">{post.content}</Typography>
-                </CardContent>
-                <CardActions>
-                  <Button size="small" color="primary">
-                    Like
-                  </Button>
-                  <Button size="small" color="secondary">
-                    Repost
-                  </Button>
-                  <Button size="small" color="success">
-                    Reply
-                  </Button>
-                </CardActions>
-              </Card>
-            ))
-          ) : (
-            <Typography>No posts available.</Typography>
-          )}
-        </Grid>
-      </Grid>
+                {/* Timestamp */}
+                <Typography variant="caption" color="textSecondary">
+                  {new Date(post.created).toLocaleString()}
+                </Typography>
+              </CardContent>
+
+              {/* Post Actions */}
+              <CardActions>
+                <Button size="small" color="primary" startIcon={<ThumbUpIcon />}>
+                  Like
+                </Button>
+                <Button size="small" color="secondary" startIcon={<RepeatIcon />}>
+                  Repost
+                </Button>
+                <Button size="small" color="success" startIcon={<ReplyIcon />}>
+                  Reply
+                </Button>
+              </CardActions>
+            </Card>
+          ))}
+        </Box>
+        {/* Third Column */}
+        <Box
+          sx={{
+            width: { xs: "100%", md: "25%" },
+            paddingX: "20px",
+            borderLeft: "1px solid #ccc",
+            height: "calc(100vh - 128px)", // Account for header and footer
+          }}
+        >
+          {/* Trending Topics */}
+          <Box sx={{ marginBottom: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
+            <Typography variant="h6">Trending Topics</Typography>
+            <Stack spacing={1} sx={{ marginTop: "10px" }}>
+              <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary">
+                #Hackathon2025
+              </Link>
+              <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary">
+                #CollegeEvent
+              </Link>
+              <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary">
+                #ResearchCollab
+              </Link>
+            </Stack>
+          </Box>
+
+          {/* Notifications Summary */}
+          <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
+            <Typography variant="h6">Notifications</Typography>
+            <Typography>JohnDoe liked your post.</Typography>
+            <Typography>JaneDoe replied to your post.</Typography>
+            <Typography>CollegeClub followed you.</Typography>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Footer */}
-      <AppBar position="static" style={{ marginTop: "20px", backgroundColor: "#6200ea" }}>
+      <AppBar position="static" style={{ marginTop: "20px" }}>
         <Toolbar style={{ justifyContent: "center" }}>
           <Typography variant="body2">&copy; 2025 EduFedi. All rights reserved.</Typography>
         </Toolbar>

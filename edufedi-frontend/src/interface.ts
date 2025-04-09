@@ -30,6 +30,7 @@ export interface User {
     uri: string;
     actor_id: number;
     username: string;
+    name: string | null;
     content: string;
     url: string | null;
     created: string;
