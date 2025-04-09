@@ -3,9 +3,18 @@ import pool from "./db.ts"; // Database connection
 import { federation } from "@fedify/fedify/x/hono";
 import fedi from "./federation.ts"; // Federation logic
 import type { User, Actor, Post } from "./schema.ts";
-
+import { cors } from "hono/cors"; // CORS middleware
 const app = new Hono();
-
+// Enable CORS for all routes
+app.use(
+  "/*",
+  cors({
+    origin: "http://localhost:3000", // Allow requests only from your React app
+    allowMethods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
+    allowHeaders: ["Content-Type", "Authorization"], // Allowed headers
+    credentials: true, // Allow cookies and credentials if needed
+  })
+);
 // Middleware for federation
 app.use(federation(fedi, () => undefined));
 
@@ -38,7 +47,7 @@ app.get("/users/:username/posts", async (c) => {
     const username = c.req.param("username");
     const result = await pool.query(
       `
-      SELECT posts.*
+      SELECT posts.*, users.username
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id

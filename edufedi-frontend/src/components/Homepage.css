@@ -1,0 +1,56 @@
+.homepage {
+    font-family: Arial, sans-serif;
+    color: #333;
+  }
+  
+  .homepage-header {
+    background-color: #6200ea;
+    color: white;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .homepage-main {
+    display: flex;
+    margin: 20px;
+  }
+  
+  .homepage-sidebar {
+    width: 200px;
+    padding: 10px;
+    background-color: #f4f4f4;
+  }
+  
+  .homepage-sidebar ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .homepage-sidebar li {
+    margin-bottom: 10px;
+  }
+  
+  .homepage-sidebar a {
+    text-decoration: none;
+    color: #6200ea;
+  }
+  
+  .homepage-timeline {
+    flex-grow: 1;
+    padding: 20px;
+  }
+  .homepage-logo
+    {
+        width: 100px;
+        height: auto;
+    }
+  .posts .post {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .post-actions button {
+    margin-right: 10px;
+  }
+  
