@@ -16,7 +16,9 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  useMediaQuery,
 } from "@mui/material";
+import ExploreIcon from "@mui/icons-material/Explore";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import HomeIcon from "@mui/icons-material/Home";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -26,212 +28,107 @@ import RepeatIcon from "@mui/icons-material/Repeat";
 import ReplyIcon from "@mui/icons-material/Reply";
 import axios from "axios";
 import { Post } from "../interface"
+import Header from "./Header";
+import NavigationBar from "./NavigationBar";
+import Footer from "./Footer";
+import PostCard from "./PostCard";
+import AddPost from "./AddPost";
 const Homepage: React.FC = (): React.ReactElement => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true); // Keep state for login status
 
   useEffect(() => {
-    // Fetch posts from the backend API
     axios
-      .get<Post[]>("http://localhost:8080/users/matiw885/posts")
+      .get<Post[]>("http://localhost:8080/posts")
       .then((response) => setPosts(response.data))
       .catch((error) => console.error("Error fetching posts:", error));
   }, []);
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const isMobile = useMediaQuery("(max-width:600px)"); // Detect screen size
+  // Calculate height dynamically based on header/footer presence if they are not fixed height
+  // Assuming standard AppBar heights (a</Box>pprox 64px for header, 56px for footer)
+  const contentHeight = "calc(100vh - 64px - 56px)"; // Adjust if your header/foot</Stack>er heights differ
 
   return (
-    <Container maxWidth="xl" sx={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Container maxWidth="xl" disableGutters sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <AppBar position="static">
-        <Toolbar>
-          <Box component="img" src="/logo.png" alt="Logo" sx={{ width: 50, height: 50, marginRight: 2 }} />
-          <Typography variant="h6" style={{ flexGrow: 1 }}>
-            EduFedi
-          </Typography>
-          {/* Conditional Login/Profile */}
-          {isLoggedIn ? (
-            <>
-              <IconButton color="inherit" onClick={handleMenuOpen}>
-                <AccountCircleIcon />
-              </IconButton>
-              <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                <MenuItem onClick={handleMenuClose}>My Profile</MenuItem>
-                <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
-                <MenuItem onClick={() => setIsLoggedIn(false)}>Logout</MenuItem>
-              </Menu>
-            </>
-          ) : (
-            <Button color="inherit" onClick={() => console.log("Login clicked")}>
-              Login
-            </Button>
-          )}
-        </Toolbar>
-      </AppBar>
+      <Header isLoggedIn={isLoggedIn} onLogout={() => setIsLoggedIn(false)} />
+      
 
-      {/* Main Content */}
-      <Box sx={{ display: "flex", flexGrow: 1, overflow: "hidden" }}>
+      {/* Main Content using Grid */}
+      <Grid container sx={{ flexGrow: 1}} overflow="hidden"> {/* Let Grid handle the main layout */}
+        <Grid
+            size={{ xs: 12, md: 3 }} // Full width on small screens, 3 columns on medium and up
+            sx={{
+                display: { xs: "none", md: "block" }, // Hide on small screens
+                padding: "20px",
+                borderRight: { md: "1px solid #ccc" },
+                height: "100vh", // Adjust heights for header/footer
+                overflow: "hidden",
+            }}
+        >
         {/* Sidebar */}
-        <Box
-          sx={{
-            width: { xs: "100%", md: "25%" },
-            padding: "20px",
-            borderRight: "1px solid #ccc",
-            height: "calc(100vh - 128px)", // Account for header and footer
-          }}
-        >
-          <Typography variant="h6">Navigation</Typography>
-          <Button
-            fullWidth
-            variant="text"
-            href="/timeline"
-            startIcon={<HomeIcon />}
-            sx={{
-              color: "inherit",
-              justifyContent: "flex-start",
-              "&:hover": {
-                backgroundColor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            EduFedi Timeline
-          </Button>
-          <Button
-            fullWidth
-            variant="text"
-            href="/research"
-            startIcon={<DescriptionIcon />}
-            sx={{
-              color: "inherit",
-              justifyContent: "flex-start",
-              "&:hover": {
-                backgroundColor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            Research Papers
-          </Button>
-          <Button
-            fullWidth
-            variant="text"
-            href="/notifications"
-            startIcon={<NotificationsIcon />}
-            sx={{
-              color: "inherit",
-              justifyContent: "flex-start",
-              "&:hover": {
-                backgroundColor: "rgba(0, 0, 0, 0.04)",
-              },
-            }}
-          >
-            Notifications
-          </Button>
-
-          {/* User Profile Summary */}
-          <Box sx={{ marginTop: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <Typography variant="subtitle1">User Profile</Typography>
-            <Typography variant="body2">Username: johndoe</Typography>
-            <Typography variant="body2">Posts: 10</Typography>
-            <Typography variant="body2">Followers: 25</Typography>
-          </Box>
-        </Box>
-
+        <NavigationBar />
+      </Grid>
         {/* Timeline */}
-        <Box
+        <Grid
+          size={{xs:12, md:6}}
           sx={{
-            width: { xs: "100%", md: "50%" },
-            overflowY: "auto",
-            height: "calc(100vh - 128px)", // Account for header and footer
+            overflowY: "auto", // Enable scrolling for this section
+            height: { xs: "calc(100vh - 64px - 56px)", md: "calc(100vh - 128px)" }, // Adjust heights for header/footer
             paddingX: "20px",
-            marginY: "20px",
+            paddingY: "20px",
           }}
         >
-          {posts.map((post) => (
-            <Card key={post.id} style={{ marginBottom: "20px", padding: "10px", borderRadius: "10px" }}>
-              <CardContent>
-                {/* User Info */}
-                <Box display="flex" alignItems="center" marginBottom={1}>
-                  <Avatar sx={{ marginRight: 2 }}>{post.username[0]}</Avatar> {/* Placeholder Avatar */}
-                  <Box>
-                    <Typography variant="subtitle1">{post.name}</Typography> {/* Display name */}
-                    <Typography variant="subtitle2">@{post.username}</Typography> {/* Display username */}
-                  </Box>
-                </Box>
+          <Grid
+            sx={{
+              height: { xs: "calc(100vh - 64px)", md: "calc(100vh - 128px)" },
+              paddingX: "20px",
+              paddingY: "20px",
+            }}
+          >
+            {posts.map((post) => (
+              <PostCard
+                key={post.id}
+                id={post.id}
+                name={post.name}
+                username={post.username}
+                content={post.content}
+                created={post.created} uri={post.uri} actor_id={0} url={post.url}              />
+            ))}
+          </Grid>
+          {/* Add a loader or empty state */}
+          {posts.length === 0 && <Typography>No posts yet...</Typography>}
+        </Grid>
 
-                {/* Post Content */}
-                <Typography variant="body1" style={{ marginBottom: "10px" }}>
-                  {post.content}
-                </Typography>
-
-                {/* Timestamp */}
-                <Typography variant="caption" color="textSecondary">
-                  {new Date(post.created).toLocaleString()}
-                </Typography>
-              </CardContent>
-
-              {/* Post Actions */}
-              <CardActions>
-                <Button size="small" color="primary" startIcon={<ThumbUpIcon />}>
-                  Like
-                </Button>
-                <Button size="small" color="secondary" startIcon={<RepeatIcon />}>
-                  Repost
-                </Button>
-                <Button size="small" color="success" startIcon={<ReplyIcon />}>
-                  Reply
-                </Button>
-              </CardActions>
-            </Card>
-          ))}
-        </Box>
         {/* Third Column */}
-        <Box
+        {!isMobile && (<Grid
+          size={{xs:12, md:3}}
           sx={{
-            width: { xs: "100%", md: "25%" },
+            display: { xs: 'none', md: 'block' },
             paddingX: "20px",
-            borderLeft: "1px solid #ccc",
-            height: "calc(100vh - 128px)", // Account for header and footer
+            borderLeft: { md: "1px solid #ccc" },
+            height: "100vh", // Adjust heights for header/footer
+            overflow: "hidden",
           }}
         >
+          <AddPost isMobile={false} />
+
           {/* Trending Topics */}
-          <Box sx={{ marginBottom: "20px", padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
+          <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
             <Typography variant="h6">Trending Topics</Typography>
             <Stack spacing={1} sx={{ marginTop: "10px" }}>
-              <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary">
-                #Hackathon2025
-              </Link>
-              <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary">
-                #CollegeEvent
-              </Link>
-              <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary">
-                #ResearchCollab
-              </Link>
+              <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary"> #Hackathon2025 </Link>
+              <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary"> #CollegeEvent </Link>
+              <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary"> #ResearchCollab </Link>
             </Stack>
           </Box>
 
-          {/* Notifications Summary */}
-          <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <Typography variant="h6">Notifications</Typography>
-            <Typography>JohnDoe liked your post.</Typography>
-            <Typography>JaneDoe replied to your post.</Typography>
-            <Typography>CollegeClub followed you.</Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Footer */}
-      <AppBar position="static" style={{ marginTop: "20px" }}>
-        <Toolbar style={{ justifyContent: "center" }}>
-          <Typography variant="body2">&copy; 2025 EduFedi. All rights reserved.</Typography>
-        </Toolbar>
-      </AppBar>
+          
+        </Grid>)}
+      </Grid>
+      {/* Floating Action Button for Mobile */}
+      {isMobile && <AddPost isMobile />}
     </Container>
   );
 };

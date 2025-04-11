@@ -9,7 +9,7 @@ const app = new Hono();
 app.use(
   "/*",
   cors({
-    origin: "http://localhost:3000", // Allow requests only from your React app
+    origin: "*", // Allow requests only from your React app
     allowMethods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     allowHeaders: ["Content-Type", "Authorization"], // Allowed headers
     credentials: true, // Allow cookies and credentials if needed
@@ -126,5 +126,23 @@ app.get("/users/:username/followers", async (c) => {
     return c.text("Internal Server Error", 500);
   }
 });
-
+// Route: Get all posts on the server sorted by latest
+app.get("/posts", async (c) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT posts.*, users.username, actors.name
+      FROM posts
+      JOIN actors ON posts.actor_id = actors.id
+      JOIN users ON users.id = actors.user_id
+      ORDER BY posts.created DESC
+      `
+    );
+    const posts = result.rows;
+    return c.json(posts);
+  } catch (error) {
+    console.error("Error in /posts handler:", (error as Error).message);
+    return c.text("Internal Server Error", 500);
+  }
+});
 export default app;
