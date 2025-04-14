@@ -39,7 +39,7 @@ const Homepage: React.FC = (): React.ReactElement => {
 
   useEffect(() => {
     axios
-      .get<Post[]>("http://localhost:8080/posts")
+      .get<Post[]>(`${process.env.REACT_APP_API_BASE_URL}/posts`)
       .then((response) => setPosts(response.data))
       .catch((error) => console.error("Error fetching posts:", error));
   }, []);
