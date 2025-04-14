@@ -1,7 +1,8 @@
 export interface User {
-    id: number;
-    username: string;
-  }
+  name: string;
+  username: string;
+  avatar?: string;
+}
   export interface Actor {
     id: number;
     user_id: number | null;

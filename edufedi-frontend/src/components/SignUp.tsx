@@ -1,60 +1,99 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
-  Button,
-  TextField,
   Typography,
+  TextField,
+  Button,
   Alert,
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
 
-// Define the expected structure of the API response
-type SignUpResponse = {
-  message: string;
-};
+interface SignupProps {
+  onSignupSuccess?: () => void;
+}
 
-type SignUpError = {
-  error: string;
-};
-
-const SignUp: React.FC = () => {
+const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
+    confirmPassword: "",
     display_name: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Active password validation on every change
+  useEffect(() => {
+    if (formData.password.length > 0 && formData.password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
+    } else if (
+      formData.confirmPassword.length > 0 &&
+      formData.password !== formData.confirmPassword
+    ) {
+      setPasswordError("Passwords do not match.");
+    } else {
+      setPasswordError(null);
+    }
+  }, [formData.password, formData.confirmPassword]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+    setError(null);
+    setMessage(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage(null);
     setError(null);
+    setMessage(null);
 
+    // Final password validation before submission
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await axios.post<SignUpResponse>(
+      await axios.post(
         `${process.env.REACT_APP_API_BASE_URL}/auth/signup`,
-        formData
+        {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          display_name: formData.display_name,
+        },
+        { withCredentials: true }
       );
-      setMessage(response.data.message);
-      setFormData({ username: "", email: "", password: "", display_name: "" });
-    } catch (err) {
+      setMessage("Account created! You can now log in.");
+      setFormData({
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        display_name: "",
+      });
+      if (onSignupSuccess) onSignupSuccess();
+    } catch (err: any) {
       if (axios.isAxiosError(err)) {
-        // Handle Axios-specific errors
-        const axiosError = err.response?.data as SignUpError;
-        setError(axiosError?.error || "An error occurred");
+        setError(
+          err.response?.data?.error ||
+            err.response?.data ||
+            "Signup failed. Please try again."
+        );
       } else {
-        // Handle non-Axios errors
-        setError("An unexpected error occurred");
+        setError("Signup failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -77,7 +116,7 @@ const SignUp: React.FC = () => {
       </Typography>
       {message && <Alert severity="success">{message}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <TextField
           fullWidth
           label="Username"
@@ -99,16 +138,6 @@ const SignUp: React.FC = () => {
         />
         <TextField
           fullWidth
-          label="Password"
-          name="password"
-          type="password"
-          value={formData.password}
-          onChange={handleChange}
-          margin="normal"
-          required
-        />
-        <TextField
-          fullWidth
           label="Display Name"
           name="display_name"
           value={formData.display_name}
@@ -116,13 +145,37 @@ const SignUp: React.FC = () => {
           margin="normal"
           required
         />
+        <TextField
+          fullWidth
+          label="Password"
+          name="password"
+          type="password"
+          value={formData.password}
+          onChange={handleChange}
+          margin="normal"
+          required
+          helperText={"At least 8 characters"}
+          error={!!passwordError}
+        />
+        <TextField
+          fullWidth
+          label="Confirm Password"
+          name="confirmPassword"
+          type="password"
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          margin="normal"
+          required
+          helperText={passwordError || ""}
+          error={!!passwordError}
+        />
         <Box sx={{ position: "relative", marginTop: "20px" }}>
           <Button
             type="submit"
             variant="contained"
             color="primary"
             fullWidth
-            disabled={loading}
+            disabled={loading || !!passwordError}
             sx={{ paddingY: "10px" }}
           >
             {loading ? (
@@ -140,4 +193,4 @@ const SignUp: React.FC = () => {
   );
 };
 
-export default SignUp;
+export default Signup;

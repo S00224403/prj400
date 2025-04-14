@@ -12,9 +12,14 @@ import ImageIcon from "@mui/icons-material/Image";
 
 interface AddPostProps {
   isMobile: boolean;
+  currentUser: {
+    name: string;
+    username: string;
+    avatar?: string; // Optional avatar URL
+  };
 }
 
-const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
+const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
   const [postContent, setPostContent] = useState("");
   const [image, setImage] = useState<File | null>(null);
 
@@ -29,6 +34,7 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
   const handleSubmit = () => {
     console.log("Post Content:", postContent);
     console.log("Uploaded Image:", image);
+    console.log("Posted by:", currentUser.username);
     // Add logic to submit the post
     setPostContent(""); // Clear text field
     setImage(null); // Clear image
@@ -52,22 +58,27 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
             width: "40px",
             height: "40px",
             borderRadius: "50%",
-            backgroundColor: "#6200ea", // Purple accent for avatar
+            backgroundColor: currentUser.avatar ? "transparent" : "#6200ea", // Purple accent for avatar if no image
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            overflow: "hidden", // Clip avatar image
           }}
         >
-          <Typography variant="h6" sx={{ color: "#fff" }}>
-            M
-          </Typography>
+          {currentUser.avatar ? (
+            <img src={currentUser.avatar} alt={currentUser.name} style={{ width: "100%", height: "100%" }} />
+          ) : (
+            <Typography variant="h6" sx={{ color: "#fff" }}>
+              {currentUser.name[0]} {/* First letter of name */}
+            </Typography>
+          )}
         </Box>
         <Box sx={{ marginLeft: "10px" }}>
           <Typography variant="subtitle1" fontWeight="bold">
-            Games Club
+            {currentUser.name}
           </Typography>
           <Typography variant="subtitle2" color="textSecondary">
-            @gamesclub
+            @{currentUser.username}
           </Typography>
         </Box>
       </Box>
@@ -97,7 +108,10 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
           },
         }}
       />
-
+      {/* Character Counter */}
+      <Typography variant="body2" color={postContent.length > maxCharacters ? "error" : "inherit"}>
+            {postContent.length}/{maxCharacters}
+      </Typography>  
       {/* Action Buttons */}
       <Box display="flex" alignItems="center" justifyContent="space-between">
         {/* Left Buttons */}
@@ -122,12 +136,11 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
           <IconButton sx={{ color: "#6200ea" }}>
             <EmojiEmotionsIcon />
           </IconButton>
-          {/* Character Counter */}
-          <Typography variant="body2" color={postContent.length > maxCharacters ? "error" : "inherit"}>
-            {postContent.length}/{maxCharacters}
-          </Typography>
-          {/* Submit Button */}
-          <Button
+        </Box>
+        
+      </Box>
+      {/* Submit Button */}
+      <Button
             variant="contained"
             sx={{
               backgroundColor: "#6200ea", // Purple accent for button background
@@ -138,9 +151,7 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile }) => {
             disabled={postContent.length === 0 || postContent.length > maxCharacters}
           >
             Post
-          </Button>
-        </Box>
-      </Box>
+      </Button>
     </Box>
   );
 };

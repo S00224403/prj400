@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AppBar,
   Toolbar,
@@ -12,7 +13,7 @@ import {
 } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import MenuIcon from "@mui/icons-material/Menu";
-import NavigationBar from "./NavigationBar"; // Import NavigationBar component
+import NavigationBar from "./NavigationBar";
 
 interface HeaderProps {
   isLoggedIn: boolean;
@@ -22,6 +23,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigate = useNavigate(); // <-- useNavigate inside the component
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -36,19 +38,19 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
   };
 
   return (
-    <AppBar position="static" sx={{ zIndex: 1100}}>
+    <AppBar position="static" sx={{ zIndex: 1100 }}>
       <Toolbar>
         {/* Hamburger Menu for Mobile */}
         <IconButton
           color="inherit"
           edge="start"
           onClick={toggleDrawer}
-          sx={{ display: { xs: "block", md: "none" } }} // Show only on mobile screens
+          sx={{ display: { xs: "block", md: "none" } }}
         >
           <MenuIcon />
         </IconButton>
-          
-        {/* Logo*/}
+
+        {/* Logo */}
         <Box sx={{ flexGrow: 1 }}>
           <img src="/logo.png" alt="Logo" style={{ height: "80px" }} />
         </Box>
@@ -77,7 +79,11 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
             </Menu>
           </>
         ) : (
-          <Button color="inherit">Login</Button>
+          <><Button color="inherit" onClick={() => navigate("/signup")}>
+              Sign Up
+            </Button><Button color="inherit" onClick={() => navigate("/login")}>
+                Login
+              </Button></>
         )}
       </Toolbar>
 
@@ -86,16 +92,15 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
         <Box
           sx={{
             width: 250,
-            height: "100vh", // Full height for drawer
+            height: "100vh",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between", // Push footer to bottom of drawer
+            justifyContent: "space-between",
           }}
           role="presentation"
           onClick={toggleDrawer}
           onKeyDown={toggleDrawer}
         >
-          {/* Navigation Bar */}
           <NavigationBar />
         </Box>
       </Drawer>

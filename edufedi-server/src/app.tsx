@@ -5,17 +5,43 @@ import fedi from "./federation.ts"; // Federation logic
 import type { User, Actor, Post } from "./schema.ts";
 import { cors } from "hono/cors"; // CORS middleware
 import authRoutes from "./authRoutes.tsx";
+import { getCookie } from "hono/cookie";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const app = new Hono();
-// Enable CORS for all routes
-app.use(
-  "/*",
-  cors({
-    origin: "*", // Allow requests only from your React app
-    allowMethods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
-    allowHeaders: ["Content-Type", "Authorization"], // Allowed headers
-    credentials: true, // Allow cookies and credentials if needed
-  })
-);
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://edufedi-frontend.onrender.com",
+];
+// Attach user info to context if session_token is present
+app.use("*", async (c, next) => {
+  const origin = c.req.header("origin");
+  if (origin && allowedOrigins.includes(origin)) {
+    c.res.headers.set("Access-Control-Allow-Origin", origin);
+    c.res.headers.set("Access-Control-Allow-Credentials", "true");
+    c.res.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
+    c.res.headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  }
+  if (c.req.method === "OPTIONS") {
+    return c.text("", 200);
+  }
+  const token = getCookie(c, "session_token");
+  if (token) {
+    try {
+      // You can type this as needed, e.g. { id: string }
+      const decoded = jwt.verify(token, JWT_SECRET);
+      // Attach to context (see below for type-safe way)
+      (c as any).user = decoded;
+    } catch {
+      (c as any).user = undefined;
+    }
+  } else {
+    (c as any).user = undefined;
+  }
+  await next();
+});
+
 // Middleware for federation
 app.use(federation(fedi, () => undefined));
 
@@ -25,6 +51,7 @@ app.route("/auth", authRoutes);
 // Route: Get user profile
 app.get("/users/:username", async (c) => {
   try {
+    if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const result = await pool.query(
       `
@@ -48,6 +75,7 @@ app.get("/users/:username", async (c) => {
 // Route: Get posts by user
 app.get("/users/:username/posts", async (c) => {
   try {
+    if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const result = await pool.query(
       `
@@ -71,6 +99,7 @@ app.get("/users/:username/posts", async (c) => {
 // Route: Create a new post
 app.post("/users/:username/posts", async (c) => {
   try {
+    if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const formData = await c.req.formData();
     const content = formData.get("content");
@@ -110,6 +139,7 @@ app.post("/users/:username/posts", async (c) => {
 // Route: Get followers of a user
 app.get("/users/:username/followers", async (c) => {
   try {
+    if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const result = await pool.query(
       `
@@ -133,6 +163,7 @@ app.get("/users/:username/followers", async (c) => {
 // Route: Get all posts on the server sorted by latest
 app.get("/posts", async (c) => {
   try {
+    if (!(c as any).user) return c.text("Unauthorised", 401);
     const result = await pool.query(
       `
       SELECT posts.*, users.username, actors.name
