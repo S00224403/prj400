@@ -132,6 +132,7 @@ authRoutes.post("/login", async (c) => {
     setCookie(c, "session_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
       maxAge: 3600,
       path: "/", // Make sure path is "/"
     });
