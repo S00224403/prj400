@@ -22,5 +22,5 @@ app.use("*", async (c, next) => {
 
 serve(
   { port: 8080, fetch: app.fetch },
-  () => console.log("API server running at http://localhost:8080")
+  () => console.log("API server running")
 );
