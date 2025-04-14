@@ -4,6 +4,7 @@ import { federation } from "@fedify/fedify/x/hono";
 import fedi from "./federation.ts"; // Federation logic
 import type { User, Actor, Post } from "./schema.ts";
 import { cors } from "hono/cors"; // CORS middleware
+import authRoutes from "./authRoutes.tsx";
 const app = new Hono();
 // Enable CORS for all routes
 app.use(
@@ -17,6 +18,9 @@ app.use(
 );
 // Middleware for federation
 app.use(federation(fedi, () => undefined));
+
+// Auth Routes
+app.route("/auth", authRoutes);
 
 // Route: Get user profile
 app.get("/users/:username", async (c) => {
