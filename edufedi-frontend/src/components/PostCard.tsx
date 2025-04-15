@@ -19,11 +19,11 @@ import axios from "axios";
 
 const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked }) => {
     const [likedState, setLikedState] = useState(liked);
-    const [likeCount, setLikeCount] = useState(like_count);
+    const [likeCount, setLikeCount] = useState(Number(like_count));
     const [reposted, setReposted] = useState(false); // Track reposted state
 
     const handleLike = () => {
-        if (!liked) {
+        if (!likedState) {
         axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, {}, { withCredentials: true })
             .then(() => {
             setLikedState(true);
