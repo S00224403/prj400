@@ -30,7 +30,7 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const JWT_SECRET = process.env.JWT_SECRET!; // Ensure you have a JWT secret in your environment variables
-
+const isLocalHost = origin && origin.includes("http://localhost");
 // Sign-Up Endpoint
 authRoutes.post("/signup", async (c) => {
   const body = await c.req.json();
@@ -131,8 +131,8 @@ authRoutes.post("/login", async (c) => {
     // Set the token as a secure HTTP-only cookie
     setCookie(c, "session_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: !isLocalHost,
+      sameSite: isLocalHost ? "Lax" : "None",
       maxAge: 3600,
       path: "/", // Make sure path is "/"
     });
