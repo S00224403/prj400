@@ -24,17 +24,17 @@ const NavigationBar: React.FC = () => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between", // Push footer to the bottom
-        height: "100vh", // Ensure full height for flexbox
-        padding: "16px",
-        overflow: "hidden",
+        height: "100%",
+        minHeight: 0,
+        overflow: "auto",
       }}
     >
       {/* Navigation Links */}
-      <Box>
+      <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "background.paper" }}>
         <Typography variant="h6" sx={{ marginBottom: "16px" }}>
           Navigation
         </Typography>
+        <Box sx={{ flex: 1, minHeight: 0 }}>
         <Button
           fullWidth
           variant="text"
@@ -95,10 +95,8 @@ const NavigationBar: React.FC = () => {
         >
           Notifications
         </Button>
+        </Box>
       </Box>
-
-      {/* Footer */}
-      <Footer />
     </Box>
   );
 };

@@ -65,40 +65,64 @@ const Homepage: React.FC = (): React.ReactElement => {
   const isMobile = useMediaQuery("(max-width:600px)");
 
   return (
-    <Container maxWidth="xl" disableGutters sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <Container
+      maxWidth="xl"
+      disableGutters
+      sx={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       <Header isLoggedIn={isLoggedIn} onLogout={logout} />
 
-      <Grid container sx={{ flexGrow: 1 }} overflow="hidden">
+      <Grid
+        container
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          height: "100%",
+          overflow: "hidden",
+        }}
+      >
         {/* Sidebar */}
         <Grid
-          size={{xs:12, md:3}}
+          container
+          size={{ xs: 12, md: 3 }}
           sx={{
-            display: { xs: "none", md: "block" },
+            display: { xs: "none", md: "flex" },
+            flexDirection: "column",
             padding: "20px",
             borderRight: { md: "1px solid #ccc" },
-            height: "100vh",
+            height: "100%",
+            minHeight: 0,
             overflow: "hidden",
           }}
         >
-          <NavigationBar />
+          <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            <NavigationBar />
+          </Box>
+          <Box sx={{ flexShrink: 0 }}>
+            <Footer />
+          </Box>
         </Grid>
 
-        {/* Main Timeline or Auth Forms */}
+        {/* Timeline */}
         <Grid
+          container
           size={{ xs: 12, md: 6 }}
           sx={{
+            height: "100%",
+            minHeight: 0,
             overflowY: "auto",
-            height: { xs: "calc(100vh - 64px - 56px)", md: "calc(100vh - 128px)" },
             paddingX: "20px",
             paddingY: "20px",
             display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: isLoggedIn ? "flex-start" : "center",
+            alignItems: "stretch",
           }}
         >
-           {/* Show posts if logged in */}
-           {isLoggedIn && posts.length > 0 ? (
+          {isLoggedIn && posts.length > 0 ? (
             posts.map((post) => (
               <PostCard
                 key={post.id}
@@ -115,7 +139,6 @@ const Homepage: React.FC = (): React.ReactElement => {
           ) : isLoggedIn ? (
             <Typography>No posts yet...</Typography>
           ) : (
-            // Show login/signup forms if not logged in
             <Box sx={{ width: "100%", maxWidth: 400 }}>
               <Stack direction="row" spacing={2} justifyContent="center" mb={2}>
                 <Typography variant="h6">Welcome! Please log in or sign up.</Typography>
@@ -139,10 +162,10 @@ const Homepage: React.FC = (): React.ReactElement => {
               {!showLogin && !showSignup && (
                 <Stack direction="row" spacing={2} justifyContent="center" mt={2}>
                   <Box>
-                    <button onClick={() => { setShowLogin(true); setShowSignup(false); }}>Login</button>
+                    <Button onClick={() => { setShowLogin(true); setShowSignup(false); }}>Login</Button>
                   </Box>
                   <Box>
-                    <button onClick={() => { setShowSignup(true); setShowLogin(false); }}>Sign Up</button>
+                    <Button onClick={() => { setShowSignup(true); setShowLogin(false); }}>Sign Up</Button>
                   </Box>
                 </Stack>
               )}
@@ -153,28 +176,36 @@ const Homepage: React.FC = (): React.ReactElement => {
         {/* Third Column */}
         {!isMobile && (
           <Grid
+            container
             size={{ xs: 12, md: 3 }}
             sx={{
-              display: { xs: "none", md: "block" },
+              display: { xs: "none", md: "flex" },
+              flexDirection: "column",
               paddingX: "20px",
               borderLeft: { md: "1px solid #ccc" },
-              height: "100vh",
+              height: "100%",
+              minHeight: 0,
               overflow: "hidden",
             }}
           >
-            {isLoggedIn && user && (
-            <><AddPost isMobile={false} currentUser={user}/></>)}
-            <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
-              <Typography variant="h6">Trending Topics</Typography>
-              <Stack spacing={1} sx={{ marginTop: "10px" }}>
-                <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary"> #Hackathon2025 </Link>
-                <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary"> #CollegeEvent </Link>
-                <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary"> #ResearchCollab </Link>
-              </Stack>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+              {isLoggedIn && user && (
+                <AddPost isMobile={false} currentUser={user} />
+              )}
+              <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
+                <Typography variant="h6">Trending Topics</Typography>
+                <Stack spacing={1} sx={{ marginTop: "10px" }}>
+                  <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary"> #Hackathon2025 </Link>
+                  <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary"> #CollegeEvent </Link>
+                  <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary"> #ResearchCollab </Link>
+                </Stack>
+              </Box>
             </Box>
           </Grid>
         )}
       </Grid>
+
+      {/* Mobile AddPost Modal */}
       {isMobile && isLoggedIn && user && (
         <>
           <Fab
@@ -182,8 +213,8 @@ const Homepage: React.FC = (): React.ReactElement => {
             aria-label="add"
             sx={{
               position: "fixed",
-              bottom: 24,
-              left: 24,
+              bottom: 12,
+              right: 12,
               zIndex: 1200,
             }}
             onClick={() => setAddPostOpen(true)}
@@ -206,7 +237,6 @@ const Homepage: React.FC = (): React.ReactElement => {
           </Modal>
         </>
       )}
-      <Footer />
     </Container>
   );
 };
