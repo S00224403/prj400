@@ -117,6 +117,16 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </Button>
         </Box>
       </form>
+      <Box sx={{ marginTop: "20px" }}>
+        <Button
+          variant="outlined"
+          color="secondary"
+          fullWidth
+          onClick={() => navigate("/")}
+        >
+          Back to Homepage
+        </Button>
+      </Box>
     </Box>
   );
 };

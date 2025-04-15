@@ -7,6 +7,7 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import axios from "axios";
 
 interface SignupProps {
@@ -14,6 +15,7 @@ interface SignupProps {
 }
 
 const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
+  const navigate = useNavigate(); // Initialize useNavigate
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -26,7 +28,6 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Active password validation on every change
   useEffect(() => {
     if (formData.password.length > 0 && formData.password.length < 8) {
       setPasswordError("Password must be at least 8 characters.");
@@ -54,7 +55,6 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
     setError(null);
     setMessage(null);
 
-    // Final password validation before submission
     if (formData.password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -76,7 +76,7 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
         },
         { withCredentials: true }
       );
-      setMessage("Account created! You can now log in.");
+      setMessage("Account created! Redirecting to login...");
       setFormData({
         username: "",
         email: "",
@@ -85,6 +85,7 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
         display_name: "",
       });
       if (onSignupSuccess) onSignupSuccess();
+      setTimeout(() => navigate("/login"), 2000); // Redirect to login page after 2 seconds
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         setError(
@@ -189,6 +190,16 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
           </Button>
         </Box>
       </form>
+      <Box sx={{ marginTop: "20px" }}>
+        <Button
+          variant="outlined"
+          color="secondary"
+          fullWidth
+          onClick={() => navigate("/")}
+        >
+          Back to Homepage
+        </Button>
+      </Box>
     </Box>
   );
 };
