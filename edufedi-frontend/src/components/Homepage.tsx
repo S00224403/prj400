@@ -8,6 +8,8 @@ import {
   Link,
   Stack,
   useMediaQuery,
+  Modal,
+  Fab,
 } from "@mui/material";
 import axios from "axios";
 import { Post, User } from "../interface";
@@ -24,7 +26,7 @@ const Homepage: React.FC = (): React.ReactElement => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showLogin, setShowLogin] = useState<boolean>(false);
   const [showSignup, setShowSignup] = useState<boolean>(false);
-
+  const [addPostOpen, setAddPostOpen] = useState(false);
   const logout = async () => {
     await axios.post(
       `${process.env.REACT_APP_API_BASE_URL}/auth/logout`,
@@ -95,7 +97,57 @@ const Homepage: React.FC = (): React.ReactElement => {
             justifyContent: isLoggedIn ? "flex-start" : "center",
           }}
         >
-          
+           {/* Show posts if logged in */}
+           {isLoggedIn && posts.length > 0 ? (
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                id={post.id}
+                name={post.name}
+                username={post.username}
+                content={post.content}
+                created={post.created}
+                uri={post.uri}
+                actor_id={post.actor_id}
+                url={post.url}
+              />
+            ))
+          ) : isLoggedIn ? (
+            <Typography>No posts yet...</Typography>
+          ) : (
+            // Show login/signup forms if not logged in
+            <Box sx={{ width: "100%", maxWidth: 400 }}>
+              <Stack direction="row" spacing={2} justifyContent="center" mb={2}>
+                <Typography variant="h6">Welcome! Please log in or sign up.</Typography>
+              </Stack>
+              {showLogin && (
+                <Login
+                  onLoginSuccess={() => {
+                    setIsLoggedIn(true);
+                    setShowLogin(false);
+                  }}
+                />
+              )}
+              {showSignup && (
+                <Signup
+                  onSignupSuccess={() => {
+                    setShowSignup(false);
+                    setShowLogin(true);
+                  }}
+                />
+              )}
+              {!showLogin && !showSignup && (
+                <Stack direction="row" spacing={2} justifyContent="center" mt={2}>
+                  <Box>
+                    <button onClick={() => { setShowLogin(true); setShowSignup(false); }}>Login</button>
+                  </Box>
+                  <Box>
+                    <button onClick={() => { setShowSignup(true); setShowLogin(false); }}>Sign Up</button>
+                  </Box>
+                </Stack>
+              )}
+            </Box>
+          )}
         </Grid>
 
         {/* Third Column */}
@@ -123,7 +175,37 @@ const Homepage: React.FC = (): React.ReactElement => {
           </Grid>
         )}
       </Grid>
-      {isMobile && isLoggedIn && user && <AddPost isMobile={isMobile} currentUser={user} />}
+      {isMobile && isLoggedIn && user && (
+        <>
+          <Fab
+            color="primary"
+            aria-label="add"
+            sx={{
+              position: "fixed",
+              bottom: 24,
+              left: 24,
+              zIndex: 1200,
+            }}
+            onClick={() => setAddPostOpen(true)}
+          >
+            +
+          </Fab>
+          <Modal
+            open={addPostOpen}
+            onClose={() => setAddPostOpen(false)}
+            aria-labelledby="add-post-modal"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Box sx={{ width: "90vw", maxWidth: 400, bgcolor: "background.paper", borderRadius: 2, boxShadow: 24, p: 2 }}>
+              <AddPost isMobile={isMobile} currentUser={user} />
+            </Box>
+          </Modal>
+        </>
+      )}
       <Footer />
     </Container>
   );

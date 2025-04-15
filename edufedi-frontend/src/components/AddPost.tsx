@@ -9,6 +9,7 @@ import {
 import PublicIcon from "@mui/icons-material/Public";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
 import ImageIcon from "@mui/icons-material/Image";
+import axios from "axios";
 
 interface AddPostProps {
   isMobile: boolean;
@@ -22,6 +23,8 @@ interface AddPostProps {
 const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
   const [postContent, setPostContent] = useState("");
   const [image, setImage] = useState<File | null>(null);
+ 
+
 
   const maxCharacters = 500;
 
@@ -32,12 +35,24 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
   };
 
   const handleSubmit = () => {
-    console.log("Post Content:", postContent);
-    console.log("Uploaded Image:", image);
-    console.log("Posted by:", currentUser.username);
-    // Add logic to submit the post
-    setPostContent(""); // Clear text field
-    setImage(null); // Clear image
+    const formData = new FormData();
+    formData.append("content", postContent);
+    if (image) {
+      formData.append("image", image);
+    }
+    formData.append("username", currentUser.username);
+
+
+    axios
+      .post(`${process.env.REACT_APP_API_BASE_URL}/users/${currentUser.username}/posts`, formData, { withCredentials: true })
+      .then((response) => {
+        console.log("Post successful:", response.data);
+        setPostContent(""); // Clear text field
+        setImage(null); // Clear image
+      })
+      .catch((error) => {
+        console.error("Error posting:", error);
+      });
   };
 
   return (

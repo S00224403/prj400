@@ -120,15 +120,34 @@ app.post("/users/:username/posts", async (c) => {
     const actor = actorResult.rows[0];
     if (!actor) return c.notFound();
 
-    const result = await pool.query(
+    // Insert with a placeholder for uri
+    const insertResult = await pool.query(
       `
-      INSERT INTO posts (actor_id, content)
-      VALUES ($1, $2)
+      INSERT INTO posts (actor_id, content, uri)
+      VALUES ($1, $2, $3)
       RETURNING *
       `,
-      [actor.id, content]
+      [actor.id, content, "TEMP"]
     );
-    const post = result.rows[0];
+    const post = insertResult.rows[0];
+
+    // Generate the real URI
+    const domainUrl = c.req.header("host");
+    const protocol = c.req.header("x-forwarded-proto") || "http";
+    const realUri = `${protocol}://${domainUrl}/${username}/posts/${post.id}`;
+
+    // Update the post with the real URI
+    await pool.query(
+      `
+      UPDATE posts
+      SET uri = $1, url = $1
+      WHERE id = $2
+      `,
+      [realUri, post.id]
+    );
+
+    // Return the post with the real URI
+    post.uri = realUri;
     return c.json(post);
   } catch (error) {
     console.error("Error in /users/:username/posts handler:", (error as Error).message);

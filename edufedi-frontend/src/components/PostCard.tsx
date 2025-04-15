@@ -56,7 +56,7 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created }) => {
     };
 
     return (
-        <Card sx={{ marginBottom: "20px", borderRadius: "10px", boxShadow: "0px 4px 10px rgba(0,0,0,0.1)" }}>
+        <Card sx={{ marginBottom: "20px", borderRadius: "10px", boxShadow: "0px 4px 10px rgba(0,0,0,0.1)", maxWidth: 500, width: "100%", }}>
             <CardContent>
                 {/* User Info */}
                 <Box display="flex" alignItems="center" marginBottom={2}>
