@@ -184,14 +184,30 @@ app.get("/users/:username/followers", async (c) => {
 app.get("/posts", async (c) => {
   try {
     if (!(c as any).user) return c.text("Unauthorised", 401);
+    const userId = (c as any).user.id;
+
+    // Get actor_id for this user
+    const actorResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [userId]
+    );
+    const actor = actorResult.rows[0];
     const result = await pool.query(
       `
-      SELECT posts.*, users.username, actors.name
+      SELECT 
+        posts.*,
+        users.username,
+        actors.name,
+        COUNT(likes.post_id) AS like_count,
+        MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END) AS liked
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id
+      LEFT JOIN likes ON posts.id = likes.post_id
+      GROUP BY posts.id, users.username, actors.name
       ORDER BY posts.created DESC
-      `
+      `,
+      [actor.id]
     );
     const posts = result.rows;
     return c.json(posts);
@@ -244,37 +260,5 @@ app.delete("/posts/:postId/like", async (c) => {
   return c.json({ success: true });
 });
 
-// Get like count and whether the current user liked a post
-app.get("/posts/:postId/likes", async (c) => {
-  if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
-  const userId = (c as any).user.id;
-
-  // Get actor_id for this user
-  const actorResult = await pool.query(
-    `SELECT id FROM actors WHERE user_id = $1`,
-    [userId]
-  );
-  const actor = actorResult.rows[0];
-
-  // Count likes
-  const countResult = await pool.query(
-    `SELECT COUNT(*) FROM likes WHERE post_id = $1`,
-    [postId]
-  );
-  const likeCount = Number(countResult.rows[0].count);
-
-  // Did this user like it?
-  let liked = false;
-  if (actor) {
-    const likedResult = await pool.query(
-      `SELECT 1 FROM likes WHERE post_id = $1 AND actor_id = $2`,
-      [postId, actor.id]
-    );
-    liked = likedResult.rowCount !== null && likedResult.rowCount > 0;
-  }
-
-  return c.json({ likeCount, liked });
-});
 
 export default app;

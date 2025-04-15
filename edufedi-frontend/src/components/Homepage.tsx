@@ -126,14 +126,7 @@ const Homepage: React.FC = (): React.ReactElement => {
             posts.map((post) => (
               <PostCard
                 key={post.id}
-                id={post.id}
-                name={post.name}
-                username={post.username}
-                content={post.content}
-                created={post.created}
-                uri={post.uri}
-                actor_id={post.actor_id}
-                url={post.url}
+                {...post}
               />
             ))
           ) : isLoggedIn ? (

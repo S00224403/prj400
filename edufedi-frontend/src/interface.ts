@@ -35,4 +35,6 @@ export interface User {
     content: string;
     url: string | null;
     created: string;
+    like_count: number;
+    liked: boolean;
   }

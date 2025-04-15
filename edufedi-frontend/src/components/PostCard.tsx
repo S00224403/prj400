@@ -17,31 +17,22 @@ import ShareIcon from "@mui/icons-material/Share";
 import { Post } from "../interface";
 import axios from "axios";
 
-const PostCard: React.FC<Post> = ({ id, name, username, content, created }) => {
-    const [liked, setLiked] = useState(false); // Track liked state
-    const [likeCount, setLikeCount] = useState(0); // Track like count
+const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked }) => {
+    const [likedState, setLikedState] = useState(liked);
+    const [likeCount, setLikeCount] = useState(like_count);
     const [reposted, setReposted] = useState(false); // Track reposted state
-
-    // Fetch like state/count on mount
-    useEffect(() => {
-        axios.get(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/likes`, { withCredentials: true })
-        .then(res => {
-            setLiked(res.data.liked);
-            setLikeCount(res.data.likeCount);
-        });
-    }, [id]);
 
     const handleLike = () => {
         if (!liked) {
         axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, {}, { withCredentials: true })
             .then(() => {
-            setLiked(true);
+            setLikedState(true);
             setLikeCount(likeCount + 1);
             });
         } else {
         axios.delete(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, { withCredentials: true })
             .then(() => {
-            setLiked(false);
+            setLikedState(false);
             setLikeCount(likeCount - 1);
             });
         }
@@ -117,10 +108,10 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created }) => {
             <CardActions sx={{ justifyContent: "space-between", padding: "16px" }}>
                 <Button
                     size="small"
-                    color={liked ? "primary" : "inherit"}
-                    startIcon={liked ? <ThumbUpIcon /> : <ThumbUpAltOutlinedIcon />}
+                    color={likedState ? "primary" : "inherit"}
+                    startIcon={likedState ? <ThumbUpIcon /> : <ThumbUpAltOutlinedIcon />}
                     onClick={handleLike}
-                    >
+                >
                     {likeCount}
                 </Button>
 
