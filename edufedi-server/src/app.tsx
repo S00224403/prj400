@@ -199,4 +199,81 @@ app.get("/posts", async (c) => {
     return c.text("Internal Server Error", 500);
   }
 });
+
+// Like a post
+app.post("/posts/:postId/like", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+    `SELECT id FROM actors WHERE user_id = $1`,
+    [userId]
+  );
+  const actor = actorResult.rows[0];
+  if (!actor) return c.text("Actor not found", 404);
+
+  // Insert like (ignore if already exists)
+  await pool.query(
+    `INSERT INTO likes (post_id, actor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    [postId, actor.id]
+  );
+  return c.json({ success: true });
+});
+
+// Unlike a post
+app.delete("/posts/:postId/like", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+    `SELECT id FROM actors WHERE user_id = $1`,
+    [userId]
+  );
+  const actor = actorResult.rows[0];
+  if (!actor) return c.text("Actor not found", 404);
+
+  await pool.query(
+    `DELETE FROM likes WHERE post_id = $1 AND actor_id = $2`,
+    [postId, actor.id]
+  );
+  return c.json({ success: true });
+});
+
+// Get like count and whether the current user liked a post
+app.get("/posts/:postId/likes", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+    `SELECT id FROM actors WHERE user_id = $1`,
+    [userId]
+  );
+  const actor = actorResult.rows[0];
+
+  // Count likes
+  const countResult = await pool.query(
+    `SELECT COUNT(*) FROM likes WHERE post_id = $1`,
+    [postId]
+  );
+  const likeCount = Number(countResult.rows[0].count);
+
+  // Did this user like it?
+  let liked = false;
+  if (actor) {
+    const likedResult = await pool.query(
+      `SELECT 1 FROM likes WHERE post_id = $1 AND actor_id = $2`,
+      [postId, actor.id]
+    );
+    liked = likedResult.rowCount !== null && likedResult.rowCount > 0;
+  }
+
+  return c.json({ likeCount, liked });
+});
+
 export default app;
