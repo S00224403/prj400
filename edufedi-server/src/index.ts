@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
+  "https://www.edufedi.com",
 ];
 
 app.use("*", async (c, next) => {

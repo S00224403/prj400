@@ -10,6 +10,7 @@ const authRoutes = new Hono();
 const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
+  "https://www.edufedi.com",
 ];
 
 authRoutes.use("*", async (c, next) => {
@@ -133,7 +134,8 @@ authRoutes.post("/login", async (c) => {
     setCookie(c, "session_token", token, {
       httpOnly: true,
       secure: !isLocalHost,
-      sameSite: isLocalHost ? "Lax" : "None",
+      // sameSite: isLocalHost ? "Lax" : "None",
+      sameSite: "lax",
       maxAge: 3600,
       path: "/", // Make sure path is "/"
     });

@@ -13,6 +13,7 @@ const app = new Hono();
 const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
+  "https://www.edufedi.com",
 ];
 // Attach user info to context if session_token is present
 app.use("*", async (c, next) => {
