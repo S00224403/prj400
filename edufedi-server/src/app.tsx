@@ -199,11 +199,14 @@ app.get("/posts", async (c) => {
         users.username,
         actors.name,
         COUNT(likes.post_id) AS like_count,
-        MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END) AS liked
+        MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END) AS liked,
+        COUNT(DISTINCT reposts.post_id) AS repost_count,
+        MAX(CASE WHEN reposts.actor_id = $1 THEN 1 ELSE 0 END) AS reposted
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id
       LEFT JOIN likes ON posts.id = likes.post_id
+      LEFT JOIN reposts ON posts.id = reposts.post_id
       GROUP BY posts.id, users.username, actors.name
       ORDER BY posts.created DESC
       `,
@@ -260,5 +263,45 @@ app.delete("/posts/:postId/like", async (c) => {
   return c.json({ success: true });
 });
 
+// Repost a post
+app.post("/posts/:postId/repost", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
 
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [userId]
+  );
+  const actor = actorResult.rows[0];
+  if (!actor) return c.text("Actor not found", 404);
+
+  await pool.query(
+      `INSERT INTO reposts (post_id, actor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [postId, actor.id]
+  );
+  return c.json({ success: true });
+});
+
+// Undo repost
+app.delete("/posts/:postId/repost", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [userId]
+  );
+  const actor = actorResult.rows[0];
+  if (!actor) return c.text("Actor not found", 404);
+
+  await pool.query(
+      `DELETE FROM reposts WHERE post_id = $1 AND actor_id = $2`,
+      [postId, actor.id]
+  );
+  return c.json({ success: true });
+});
 export default app;

@@ -17,29 +17,42 @@ import ShareIcon from "@mui/icons-material/Share";
 import { Post } from "../interface";
 import axios from "axios";
 
-const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked }) => {
+const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked, repost_count, reposted }) => {
     const [likedState, setLikedState] = useState(liked);
     const [likeCount, setLikeCount] = useState(Number(like_count));
-    const [reposted, setReposted] = useState(false); // Track reposted state
+    const [repostState, setRepostedState] = useState(reposted );
+    const [repostCount, setRepostCount] = useState(Number(repost_count));
 
     const handleLike = () => {
         if (!likedState) {
-        axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, {}, { withCredentials: true })
+            axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, {}, { withCredentials: true })
             .then(() => {
-            setLikedState(true);
-            setLikeCount(likeCount + 1);
+                setLikedState(true);
+                setLikeCount(likeCount + 1);
             });
-        } else {
-        axios.delete(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, { withCredentials: true })
+            } else {
+            axios.delete(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, { withCredentials: true })
             .then(() => {
-            setLikedState(false);
-            setLikeCount(likeCount - 1);
+                setLikedState(false);
+                setLikeCount(likeCount - 1);
             });
-        }
+            }
     };
 
     const handleRepost = () => {
-        setReposted(!reposted); // Toggle reposted state
+        if (!repostState) {
+            axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/repost`, {}, { withCredentials: true })
+            .then(() => {
+                setRepostedState(true);
+                setRepostCount(repostCount + 1);
+            });
+        } else {
+            axios.delete(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/repost`, { withCredentials: true })
+            .then(() => {
+                setRepostedState(false);
+                setRepostCount(repostCount - 1);
+            });
+        }
     };
 
     const handleShare = () => {
@@ -118,10 +131,11 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 {/* Repost Button */}
                 <Button
                     size="small"
-                    color={reposted ? "primary" : "inherit"}
-                    startIcon={reposted ? <RepeatIcon /> : <RepeatOutlinedIcon />}
+                    color={repostState ? "primary" : "inherit"}
+                    startIcon={repostState ? <RepeatIcon /> : <RepeatOutlinedIcon />}
                     onClick={handleRepost}
                 >
+                    {repostCount}
                 </Button>
 
                 {/* Reply Button */}

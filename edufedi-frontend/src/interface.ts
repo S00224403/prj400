@@ -37,4 +37,6 @@ export interface User {
     created: string;
     like_count: number;
     liked: boolean;
+    repost_count: number;
+    reposted: boolean;
   }
