@@ -8,6 +8,8 @@ import authRoutes from "./authRoutes.tsx";
 import { getCookie } from "hono/cookie";
 import jwt from "jsonwebtoken";
 
+const FEDERATION_PROTOCOL = "https"
+const FEDERATION_HOST = "edufedi.com";
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const app = new Hono();
 const allowedOrigins = [
@@ -133,9 +135,7 @@ app.post("/users/:username/posts", async (c) => {
     const post = insertResult.rows[0];
 
     // Generate the real URI
-    const domainUrl = c.req.header("host");
-    const protocol = c.req.header("x-forwarded-proto") || "http";
-    const realUri = `${protocol}://${domainUrl}/${username}/posts/${post.id}`;
+    const realUri = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/${username}/posts/${post.id}`;
 
     // Update the post with the real URI
     await pool.query(

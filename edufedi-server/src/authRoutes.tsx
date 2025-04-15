@@ -12,7 +12,8 @@ const allowedOrigins = [
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
 ];
-
+const FEDERATION_PROTOCOL = "https"
+const FEDERATION_HOST = "edufedi.com";
 authRoutes.use("*", async (c, next) => {
   const origin = c.req.header("origin");
   if (origin && allowedOrigins.includes(origin)) {
@@ -74,14 +75,11 @@ authRoutes.post("/signup", async (c) => {
       [authUserId, username, email]
     );
 
-    const host = c.req.header("host");
-    const protocol = c.req.header("x-forwarded-proto") || "http";
-
-    const actorUri = `${protocol}://${host}/users/${username}`;
-    const actorHandle = `${username}@${host}`;
-    const inboxUrl = `${protocol}://${host}/users/${username}/inbox`;
-    const shared_inbox_url = `${protocol}://${host}/inbox`;
-    const url = `${protocol}://${host}/users/${username}`;
+    const actorUri = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/users/${username}`;
+    const actorHandle = `${username}@${FEDERATION_HOST}`;
+    const inboxUrl = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/users/${username}/inbox`;
+    const shared_inbox_url = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/inbox`;
+    const url = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/users/${username}`;
 
     // Step 4: Insert actor using display_name from metadata
     await pool.query(
