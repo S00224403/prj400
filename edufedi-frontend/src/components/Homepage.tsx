@@ -20,23 +20,15 @@ import PostCard from "./PostCard";
 import AddPost from "./AddPost";
 import Login from "./Login";
 import Signup from "./SignUp";
+import { useAuth } from "./AuthContext";
 
 const Homepage: React.FC = (): React.ReactElement => {
+  const { isLoggedIn, user, setIsLoggedIn, setUser, logout } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [showLogin, setShowLogin] = useState<boolean>(false);
   const [showSignup, setShowSignup] = useState<boolean>(false);
   const [addPostOpen, setAddPostOpen] = useState(false);
-  const logout = async () => {
-    await axios.post(
-      `${process.env.REACT_APP_API_BASE_URL}/auth/logout`,
-      {},
-      { withCredentials: true }
-    );
-    setIsLoggedIn(false);
-  };
 
-  const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
     axios.get(`${process.env.REACT_APP_API_BASE_URL}/auth/me`, { withCredentials: true })
       .then((res) => {
@@ -100,9 +92,7 @@ const Homepage: React.FC = (): React.ReactElement => {
             overflow: "hidden",
           }}
         >
-          <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            <NavigationBar />
-          </Box>
+          <NavigationBar />
           <Box sx={{ flexShrink: 0 }}>
             <Footer />
           </Box>

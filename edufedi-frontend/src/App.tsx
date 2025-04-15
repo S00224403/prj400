@@ -3,14 +3,20 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Homepage from "./components/Homepage";
 import SignUp from "./components/SignUp";
 import Login from "./components/Login";
+import PostPage from "./components/PostPage";
+import { AuthProvider } from "./components/AuthContext";
 
 const App: React.FC = () => (
   <>
-    <Routes>
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/" element={<Homepage />} />
-      <Route path="/login" element={<Login />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/" element={<Homepage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/posts/:postId" element={<PostPage />} />
+      </Routes>
+    </AuthProvider>
+    
   </>
 );
 

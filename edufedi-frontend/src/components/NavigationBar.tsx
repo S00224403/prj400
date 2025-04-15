@@ -20,84 +20,88 @@ const NavigationBar: React.FC = () => {
   }, []);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        minHeight: 0,
-        overflow: "auto",
-      }}
-    >
-      {/* Navigation Links */}
-      <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "background.paper" }}>
-        <Typography variant="h6" sx={{ marginBottom: "16px" }}>
-          Navigation
-        </Typography>
-        <Box sx={{ flex: 1, minHeight: 0 }}>
-        <Button
-          fullWidth
-          variant="text"
-          href="/timeline"
-          startIcon={<HomeIcon />}
-          sx={{
-            color: "inherit",
-            justifyContent: "flex-start",
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
-            marginBottom: "10px",
-          }}
-        >
-          Home
-        </Button>
-        <Button
-          fullWidth
-          variant="text"
-          href="/timeline"
-          startIcon={<ExploreIcon />}
-          sx={{
-            color: "inherit",
-            justifyContent: "flex-start",
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
-            marginBottom: "10px",
-          }}
-        >
-          EduFedi Timeline
-        </Button>
-        <Button
-          fullWidth
-          variant="text"
-          href="/research"
-          startIcon={<DescriptionIcon />}
-          sx={{
-            color: "inherit",
-            justifyContent: "flex-start",
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
-            marginBottom: "10px",
-          }}
-        >
-          Research Papers
-        </Button>
-        <Button
-          fullWidth
-          variant="text"
-          href="/notifications"
-          startIcon={
-            <Badge badgeContent={notificationCount} color="primary">
-              <NotificationsIcon />
-            </Badge>
-          }
-          sx={{
-            color: "inherit",
-            justifyContent: "flex-start",
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
-            marginBottom: "10px",
-          }}
-        >
-          Notifications
-        </Button>
+    <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          minHeight: 0,
+          overflow: "auto",
+        }}
+      >
+        {/* Navigation Links */}
+        <Box sx={{ position: "sticky", top: 0, zIndex: 2, bgcolor: "background.paper" }}>
+          <Typography variant="h6" sx={{ marginBottom: "16px" }}>
+            Navigation
+          </Typography>
+          <Box sx={{ flex: 1, minHeight: 0 }}>
+          <Button
+            fullWidth
+            variant="text"
+            href="/timeline"
+            startIcon={<HomeIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+              marginBottom: "10px",
+            }}
+          >
+            Home
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            href="/timeline"
+            startIcon={<ExploreIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+              marginBottom: "10px",
+            }}
+          >
+            EduFedi Timeline
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            href="/research"
+            startIcon={<DescriptionIcon />}
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+              marginBottom: "10px",
+            }}
+          >
+            Research Papers
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            href="/notifications"
+            startIcon={
+              <Badge badgeContent={notificationCount} color="primary">
+                <NotificationsIcon />
+              </Badge>
+            }
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+              marginBottom: "10px",
+            }}
+          >
+            Notifications
+          </Button>
+          </Box>
         </Box>
       </Box>
     </Box>
+    
+    
   );
 };
 
