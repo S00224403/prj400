@@ -156,15 +156,11 @@ authRoutes.post("/logout", async (c) => {
 });
 
 authRoutes.get("/me", async (c) => {
-  console.log("Checking user session...");
   const token = getCookie(c, "session_token");
   if (!token) return c.text("Unauthorized", 401);
-
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
     const userId = decoded.id;
-    console.log("Decoded JWT:", decoded);
-    console.log("User ID:", userId);
     const result = await pool.query(
       `SELECT users.id, users.username, actors.name
        FROM users
@@ -173,7 +169,6 @@ authRoutes.get("/me", async (c) => {
       [userId]
     );    
     const user = result.rows[0];
-    console.log("User from database:", user);
     if (!user) return c.text("User not found", 404);
     return c.json({ user });
   } catch {
