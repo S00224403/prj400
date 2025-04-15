@@ -34,6 +34,7 @@ import {
   
   federation.setActorDispatcher("/users/{identifier}", async (ctx, identifier) => {
     try {
+      console.log("Received request for actor:", identifier);
       // Query the database for user and actor information
       const result = await pool.query(
         `
@@ -44,12 +45,13 @@ import {
         `,
         [identifier]
       );
-  
+      
       const user = result.rows[0]; // Get the first row from the query result
+      console.log("Query result:", user);
       if (user == null) return null; // Return null if no user is found
   
       const keys = await ctx.getActorKeyPairs(identifier); // Fetch key pairs from context
-  
+      console.log("URI: ", ctx.getActorUri(identifier))
       // Create and return a new Person object based on the query result
       return new Person({
         id: ctx.getActorUri(identifier),
