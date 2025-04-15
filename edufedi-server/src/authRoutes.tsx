@@ -30,7 +30,6 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const JWT_SECRET = process.env.JWT_SECRET!; // Ensure you have a JWT secret in your environment variables
-const isLocalHost = origin && origin.includes("http://localhost");
 // Sign-Up Endpoint
 authRoutes.post("/signup", async (c) => {
   const body = await c.req.json();
@@ -103,8 +102,10 @@ authRoutes.post("/signup", async (c) => {
 // Login Endpoint
 authRoutes.post("/login", async (c) => {
   const body = await c.req.json();
+  const origin = c.req.header("origin");
+  const isLocalHost = origin && origin.includes("http://localhost");
   const { email, password } = body;
-
+  console.log("Received login request:", { email, password });
   if (!email || !password) {
     return c.text("Email and password are required", 400);
   }
