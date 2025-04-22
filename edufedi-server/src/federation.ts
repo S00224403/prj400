@@ -103,7 +103,7 @@ import {
       // For each key type, check if a key pair exists; if not, generate and store it
       for (const keyType of ["RSASSA-PKCS1-v1_5", "Ed25519"] as const) {
         if (!keys[keyType]) {
-          logger.debug(
+          console.log(
             "The user {identifier} does not have an {keyType} key; creating one...",
             { identifier, keyType }
           );
@@ -155,7 +155,7 @@ import {
     .on(Follow, async (ctx, follow) => {
       try {
         if (follow.objectId == null) {
-          logger.debug("The Follow object does not have an object: {follow}", {
+          console.log("The Follow object does not have an object: {follow}", {
             follow,
           });
           return;
@@ -163,7 +163,7 @@ import {
   
         const object = ctx.parseUri(follow.objectId);
         if (object == null || object.type !== "actor") {
-          logger.debug("The Follow object's object is not an actor: {follow}", {
+          console.log("The Follow object's object is not an actor: {follow}", {
             follow,
           });
           return;
@@ -171,7 +171,7 @@ import {
   
         const follower = await follow.getActor();
         if (follower?.id == null || follower.inboxId == null) {
-          logger.debug("The Follow object does not have an actor: {follow}", {
+          console.log("The Follow object does not have an actor: {follow}", {
             follow,
           });
           return;
@@ -190,7 +190,7 @@ import {
         const followingId = followingResult.rows[0]?.id;
   
         if (followingId == null) {
-          logger.debug(
+          console.log(
             "Failed to find the actor to follow in the database: {object}",
             { object }
           );
@@ -201,7 +201,7 @@ import {
         const followerId = (await persistActor(follower))?.id;
   
         if (followerId == null) {
-          logger.debug(
+          console.log(
             "Failed to persist the follower in the database: {follower}",
             { follower }
           );
@@ -421,7 +421,7 @@ import {
     );
     async function persistActor(actor: APActor): Promise<Actor | null> {
       if (actor.id == null || actor.inboxId == null) {
-        logger.debug("Actor is missing required fields: {actor}", { actor });
+        console.log("Actor is missing required fields: {actor}", { actor });
         return null;
       }
     
