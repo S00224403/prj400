@@ -303,6 +303,9 @@ import {
       } catch (error) {
         console.error("Error handling Accept activity:", (error as Error).message);
       }
+    })
+    .onError((ctx, error) => {
+      console.error("Error in federation:", error);
     });
     
   federation
