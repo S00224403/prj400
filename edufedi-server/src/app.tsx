@@ -17,6 +17,7 @@ const allowedOrigins = [
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
 ];
+console.log("Active")
 // Middleware for federation
 app.use(federation(fedi, () => undefined));
 // Attach user info to context if session_token is present
