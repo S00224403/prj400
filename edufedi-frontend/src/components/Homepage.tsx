@@ -21,6 +21,7 @@ import AddPost from "./AddPost";
 import Login from "./Login";
 import Signup from "./SignUp";
 import { useAuth } from "./AuthContext";
+import Sidebar from "./Sidebar";
 
 const Homepage: React.FC = (): React.ReactElement => {
   const { isLoggedIn, user, setIsLoggedIn, setUser, logout } = useAuth();
@@ -171,19 +172,7 @@ const Homepage: React.FC = (): React.ReactElement => {
               overflow: "hidden",
             }}
           >
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-              {isLoggedIn && user && (
-                <AddPost isMobile={false} currentUser={user} />
-              )}
-              <Box sx={{ padding: "10px", border: "1px solid #ccc", borderRadius: "8px" }}>
-                <Typography variant="h6">Trending Topics</Typography>
-                <Stack spacing={1} sx={{ marginTop: "10px" }}>
-                  <Link href="/search?hashtag=Hackathon2025" underline="hover" color="primary"> #Hackathon2025 </Link>
-                  <Link href="/search?hashtag=CollegeEvent" underline="hover" color="primary"> #CollegeEvent </Link>
-                  <Link href="/search?hashtag=ResearchCollab" underline="hover" color="primary"> #ResearchCollab </Link>
-                </Stack>
-              </Box>
-            </Box>
+            <Sidebar user={user} />
           </Grid>
         )}
       </Grid>

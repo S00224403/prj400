@@ -92,7 +92,10 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 alignSelf: "center",
             }}
         >
-            <CardContent>
+            <CardContent 
+                onClick={() => window.location.href = `/posts/${id}`}
+                sx={{ cursor: "pointer" }}
+            >
                 {/* User Info */}
                 <Box display="flex" alignItems="center" marginBottom={2}>
                     <Avatar sx={{ marginRight: "10px", backgroundColor: "#6200ea" }}>{name ? name[0] : "?"}</Avatar>

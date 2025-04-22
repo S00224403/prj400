@@ -220,6 +220,45 @@ app.get("/posts", async (c) => {
   }
 });
 
+// Route: Get a specific post by ID
+app.get("/posts/:postId", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorised", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+    `SELECT id FROM actors WHERE user_id = $1`,
+    [userId]
+  );
+  const actor = actorResult.rows[0];
+
+  const result = await pool.query(
+    `
+    SELECT
+      posts.*,
+      users.username,
+      actors.name,
+      COUNT(DISTINCT likes.post_id)::int AS like_count,
+      MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END)::int AS liked,
+      COUNT(DISTINCT reposts.post_id)::int AS repost_count,
+      MAX(CASE WHEN reposts.actor_id = $1 THEN 1 ELSE 0 END)::int AS reposted
+    FROM posts
+    JOIN actors ON posts.actor_id = actors.id
+    JOIN users ON users.id = actors.user_id
+    LEFT JOIN likes ON posts.id = likes.post_id
+    LEFT JOIN reposts ON posts.id = reposts.post_id
+    WHERE posts.id = $2
+    GROUP BY posts.id, users.username, actors.name
+    `,
+    [actor.id, postId]
+  );
+  const post = result.rows[0];
+  
+  if (!post) return c.text("Not found", 404);
+  return c.json(post);
+});
+
 // Like a post
 app.post("/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
@@ -304,4 +343,44 @@ app.delete("/posts/:postId/repost", async (c) => {
   );
   return c.json({ success: true });
 });
+
+app.post("/posts/:postId/comments", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = Number(c.req.param("postId"));
+  const userId = (c as any).user.id;
+  const { content } = await c.req.json();
+
+  if (!content || typeof content !== "string" || !content.trim()) {
+    return c.text("Invalid content", 400);
+  }
+
+  // Get actor_id for this user
+  const actorResult = await pool.query(
+    `SELECT id FROM actors WHERE user_id = $1`,
+    [userId]
+  );
+  const actor = actorResult.rows[0];
+  if (!actor) return c.text("Actor not found", 404);
+
+  await pool.query(
+    `INSERT INTO comments (post_id, actor_id, content) VALUES ($1, $2, $3)`,
+    [postId, actor.id, content]
+  );
+  return c.json({ success: true });
+});
+app.get("/posts/:postId/comments", async (c) => {
+  const postId = Number(c.req.param("postId"));
+  const result = await pool.query(
+    `SELECT comments.*, actors.name, users.username
+     FROM comments
+     JOIN actors ON comments.actor_id = actors.id
+     JOIN users ON actors.user_id = users.id
+     WHERE comments.post_id = $1
+     ORDER BY comments.created ASC`,
+    [postId]
+  );
+  
+  return c.json(result.rows);
+});
+
 export default app;
