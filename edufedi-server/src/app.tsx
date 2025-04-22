@@ -17,6 +17,8 @@ const allowedOrigins = [
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
 ];
+// Middleware for federation
+app.use(federation(fedi, () => undefined));
 // Attach user info to context if session_token is present
 app.use("*", async (c, next) => {
   const origin = c.req.header("origin");
@@ -44,9 +46,6 @@ app.use("*", async (c, next) => {
   }
   await next();
 });
-
-// Middleware for federation
-app.use(federation(fedi, () => undefined));
 
 // Auth Routes
 app.route("/auth", authRoutes);
