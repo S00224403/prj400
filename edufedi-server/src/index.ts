@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import app from "./app.tsx";
 import { cors } from "hono/cors";
+import { behindProxy } from "x-forwarded-fetch";
 const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
@@ -22,6 +23,10 @@ app.use("*", async (c, next) => {
 });
 
 serve(
-  { port: 8080, fetch: app.fetch },
-  () => console.log("API server running")
+  {
+    port: 8080,
+    fetch: behindProxy(app.fetch.bind(app)),
+  },
+  (info) =>
+    console.log("Server started at https://" + info.address + ":" + info.port)
 );

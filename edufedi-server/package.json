@@ -15,7 +15,8 @@
     "hono": "^4.7.6",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1",
-    "stringify-entities": "^4.0.4"
+    "stringify-entities": "^4.0.4",
+    "x-forwarded-fetch": "^0.2.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
