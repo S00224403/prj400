@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS actors (
   url TEXT CHECK (
     url LIKE 'https://%' OR url LIKE 'http://%'
   ),
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL)
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
+  publicKey TEXT NOT NULL CHECK (publicKey <> ''),
 );
 
 CREATE TABLE IF NOT EXISTS keys (

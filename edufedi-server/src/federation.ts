@@ -430,17 +430,20 @@ import {
       }
     
       try {
+        // Fetch and store the public key:
+        const publicKey = await actor.getPublicKey();
+
         const result = await pool.query(
           `
-          -- Add a new actor record or update if it already exists
-          INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url, public_key)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (uri) DO UPDATE SET
-            handle = excluded.handle,
-            name = excluded.name,
-            inbox_url = excluded.inbox_url,
-            shared_inbox_url = excluded.shared_inbox_url,
-            url = excluded.url
+            handle = EXCLUDED.handle,
+            name = EXCLUDED.name,
+            inbox_url = EXCLUDED.inbox_url,
+            shared_inbox_url = EXCLUDED.shared_inbox_url,
+            url = EXCLUDED.url,
+            public_key = EXCLUDED.public_key
           RETURNING *
           `,
           [
@@ -450,6 +453,7 @@ import {
             actor.inboxId.href,
             actor.endpoints?.sharedInbox?.href,
             actor.url?.href,
+            publicKey, // Store public key
           ]
         );
     
