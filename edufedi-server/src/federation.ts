@@ -30,7 +30,7 @@ import {
   const federation = createFederation({
     kv: new MemoryKvStore(),
     queue: new InProcessMessageQueue(),
-    origin: "https://edufedi.com",
+    // origin: "https://edufedi.com",
   });
   
   federation.setActorDispatcher("/users/{identifier}", async (ctx, identifier) => {
