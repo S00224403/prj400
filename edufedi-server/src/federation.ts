@@ -266,6 +266,7 @@ import {
     })
     .on(Accept, async (ctx, accept) => {
       try {
+        console.log("Accept activity received:", accept);
         const follow = await accept.getObject();
         if (!(follow instanceof Follow)) return;
     
