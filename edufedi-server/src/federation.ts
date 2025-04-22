@@ -153,6 +153,7 @@ import {
   federation
     .setInboxListeners("/users/{identifier}/inbox", "/inbox")
     .on(Follow, async (ctx, follow) => {
+      console.log("Follow activity received:", follow);
       try {
         if (follow.objectId == null) {
           console.log("The Follow object does not have an object: {follow}", {
