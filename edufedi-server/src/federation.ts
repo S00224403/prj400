@@ -75,164 +75,103 @@ import {
   })
   .setKeyPairsDispatcher(async (ctx, identifier) => {
     try {
-      // Query the database for user information
       const userResult = await pool.query(
-        `
-        SELECT * FROM users WHERE username = $1
-        `,
+        "SELECT * FROM users WHERE username = $1",
         [identifier]
       );
-      const user = userResult.rows[0];
-      if (user == null) return []; // Return an empty array if no user is found
+      if (userResult.rows.length === 0) return [];
   
-      // Query the database for keys associated with the user
-      const keysResult = await pool.query(
-        `
-        SELECT * FROM keys WHERE keys.user_id = $1
-        `,
-        [user.id]
+      const keys = await Promise.all(
+        ["RSASSA-PKCS1-v1_5", "Ed25519"].map(async (type) => {
+          const res = await pool.query(
+            "SELECT * FROM keys WHERE user_id = $1 AND type = $2",
+            [userResult.rows[0].id, type]
+          );
+          return res.rows[0];
+        })
       );
-      const rows = keysResult.rows;
   
-      const keys = Object.fromEntries(
-        rows.map((row) => [row.type, row])
-      ) as Record<Key["type"], Key>;
-  
-      const pairs: CryptoKeyPair[] = [];
-  
-      // For each key type, check if a key pair exists; if not, generate and store it
-      for (const keyType of ["RSASSA-PKCS1-v1_5", "Ed25519"] as const) {
-        if (!keys[keyType]) {
-          console.log(
-            "The user {identifier} does not have an {keyType} key; creating one...",
-            { identifier, keyType }
-          );
-  
-          const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
-  
-          // Insert the generated key pair into the database
-          await pool.query(
-            `
-            INSERT INTO keys (user_id, type, private_key, public_key)
-            VALUES ($1, $2, $3, $4)
-            `,
-            [
-              user.id,
-              keyType,
-              JSON.stringify(await exportJwk(privateKey)),
-              JSON.stringify(await exportJwk(publicKey)),
-            ]
-          );
-  
-          pairs.push({ privateKey, publicKey });
-        } else {
-          pairs.push({
-            privateKey: await importJwk(
-              JSON.parse(keys[keyType].private_key),
-              "private"
-            ),
-            publicKey: await importJwk(
-              JSON.parse(keys[keyType].public_key),
-              "public"
-            ),
-          });
-        }
-      }
-  
-      return pairs;
+      return keys.filter(Boolean).map(async key => ({
+        publicKey: await importJwk(JSON.parse(key.public_key), "public"),
+        privateKey: await importJwk(JSON.parse(key.private_key), "private")
+      }));
     } catch (error) {
-      if (error instanceof Error) {
-        console.error("Error in setKeyPairsDispatcher:", error.message);
-      } else {
-        console.error("Unknown error in setKeyPairsDispatcher:", error);
-      }
-      return []; // Return an empty array if there is an error
+      console.error("[ERROR] Key pair dispatch failed:", error);
+      return [];
     }
   });
   
   federation
     .setInboxListeners("/users/{identifier}/inbox", "/inbox")
     .on(Follow, async (ctx, follow) => {
-      console.log("Follow activity received:", follow);
+      console.log("[DEBUG] Received Follow:", follow.id);
+      
       try {
+        // Verify and parse the Follow's target
         if (follow.objectId == null) {
-          console.log("The Follow object does not have an object: {follow}", {
-            follow,
-          });
+          console.log("[WARN] Follow activity missing objectId");
           return;
         }
-  
-        const object = ctx.parseUri(follow.objectId);
-        if (object == null || object.type !== "actor") {
-          console.log("The Follow object's object is not an actor: {follow}", {
-            follow,
-          });
+    
+        // Safely parse and type-check the URI
+        const parsed = ctx.parseUri(follow.objectId);
+        if (parsed?.type !== "actor") {
+          console.log("[WARN] Follow target is not an actor");
           return;
         }
-  
+        const identifier = parsed.identifier;
+    
+        // Get and persist the follower
         const follower = await follow.getActor();
-        if (follower?.id == null || follower.inboxId == null) {
-          console.log("The Follow object does not have an actor: {follow}", {
-            follow,
-          });
+        if (!follower?.id) {
+          console.log("[WARN] Follow activity missing valid actor");
           return;
         }
-  
-        // Query the database to find the actor to follow
-        const followingResult = await pool.query(
-          `
-          SELECT actors.id
-          FROM actors
-          JOIN users ON users.id = actors.user_id
-          WHERE users.username = $1
-          `,
-          [object.identifier]
+        const persisted = await persistActor(follower);
+        if (!persisted?.id) {
+          console.log("[ERROR] Failed to persist follower:", follower.id.href);
+          return;
+        }
+    
+        // Find the local user being followed
+        const targetUser = await pool.query(
+          `SELECT actors.id 
+           FROM actors 
+           JOIN users ON actors.user_id = users.id 
+           WHERE users.username = $1`,
+          [identifier]
         );
-        const followingId = followingResult.rows[0]?.id;
-  
-        if (followingId == null) {
-          console.log(
-            "Failed to find the actor to follow in the database: {object}",
-            { object }
-          );
+    
+        if (!targetUser.rows[0]?.id) {
+          console.log("[WARN] Follow target not found for username:", identifier);
           return;
         }
-  
-        // Use persistActor to insert or update the follower actor record
-        const followerId = (await persistActor(follower))?.id;
-  
-        if (followerId == null) {
-          console.log(
-            "Failed to persist the follower in the database: {follower}",
-            { follower }
-          );
-          return;
-        }
-  
-        // Insert the follow relationship into the database
+    
+        // Store the follow relationship
         await pool.query(
-          `
-          INSERT INTO follows (following_id, follower_id)
-          VALUES ($1, $2)
-          `,
-          [followingId, followerId]
+          `INSERT INTO follows (following_id, follower_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [targetUser.rows[0].id, persisted.id]
         );
-  
-        // Create and send an Accept activity
+    
+        // Create Accept activity with proper addressing
         const accept = new Accept({
-          actor: follow.objectId,
-          to: follow.actorId,
+          actor: ctx.getActorUri(identifier), // Local user's actor URI
           object: follow,
+          to: follow.actorId
         });
-        await ctx.sendActivity(object, follower, accept);
+    
+        // Send with explicit sender and recipient
+        await ctx.sendActivity(
+          { identifier }, // Sender (local user)
+          follower,       // Recipient (follower's actor)
+          accept          // Activity
+        );
+    
       } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error handling Follow activity:", { message: error.message });
-        } else {
-          console.error("Unknown error handling Follow activity:", error);
-        }
+        console.error("[ERROR] Follow handling failed:", error);
       }
-    })
+    })      
     .on(Undo, async (ctx, undo) => {
       try {
         const object = await undo.getObject();
@@ -434,17 +373,22 @@ import {
         let publicKey: string | null = null;
         try {
           const key = await actor.getPublicKey?.();
-          publicKey = key instanceof CryptoKey ? JSON.stringify(await exportJwk(key)) : null;
-          console.log("[DEBUG] Fetched public key for", actor.id.href, ":", publicKey?.substring(0, 50));
+          publicKey = key instanceof CryptoKey 
+            ? JSON.stringify(await exportJwk(key)) 
+            : null;
+          console.log("[DEBUG] Fetched public key for", actor.id.href);
         } catch (e) {
-          console.error("[ERROR] Failed to fetch public key for", actor.id.href, ":", e);
+          console.error("[ERROR] Failed to fetch public key:", e);
         }
     
         // Insert/update actor
         const result = await pool.query(
-          `INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url, public_key)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (uri) DO UPDATE SET public_key = EXCLUDED.public_key
+          `INSERT INTO actors (
+            uri, handle, name, inbox_url, 
+            shared_inbox_url, url, public_key
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (uri) DO UPDATE SET 
+             public_key = EXCLUDED.public_key
            RETURNING *`,
           [
             actor.id.href,
@@ -453,17 +397,17 @@ import {
             actor.inboxId.href,
             actor.endpoints?.sharedInbox?.href,
             actor.url?.href,
-            publicKey, // May be NULL
+            publicKey // Can be NULL
           ]
         );
         
-        console.log("[DEBUG] Persisted actor:", result.rows[0]);
+        console.log("[DEBUG] Persisted actor:", result.rows[0]?.uri);
         return result.rows[0] ?? null;
       } catch (error) {
-        console.error("[ERROR] Database error in persistActor:", error);
+        console.error("[ERROR] Database error:", error);
         return null;
       }
-    }    
+    }        
     
   export default federation;
   
