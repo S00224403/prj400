@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS likes (
   post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
   actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  activity_uri text UNIQUE
   PRIMARY KEY (post_id, actor_id)
 );
 
@@ -72,4 +73,11 @@ CREATE TABLE IF NOT EXISTS comments (
   actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (content <> ''),
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS reposts (
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
+  created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  activity_uri text UNIQUE,
+  PRIMARY KEY (post_id, actor_id)
 );

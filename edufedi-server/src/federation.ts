@@ -17,6 +17,8 @@ import {
     type Activity,         
     type Actor as APActor,  
     type Recipient,
+    Like,
+    Announce,
   } from "@fedify/fedify";
 
 import { PUBLIC_COLLECTION } from "@fedify/fedify";
@@ -198,21 +200,61 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
       } catch (error) {
         console.error("[ERROR] Follow handling failed:", error);
       }
-    })      
+    })
+    .on(Like, async (ctx, like) => {
+      try {
+        const postUri = like.objectId?.href;
+        const liker = await like.getActor();
+        if(!liker?.id) return;
+        await pool.query(
+          `INSERT INTO likes (post_id, actor_id, activity_uri)
+           SELECT id, $1, $2 FROM posts WHERE uri = $3
+           ON CONFLICT (activity_uri) DO NOTHING`,
+          [(await persistActor(liker))?.id, like.id?.href, postUri]
+        );
+      } catch (error) {
+        console.error("Error handling Like:", error);
+      }
+    })
+    // Handle incoming Boosts (Announce)
+    .on(Announce, async (ctx, announce) => {
+      try {
+        const originalPostUri = announce.objectId?.href;
+        const booster = await announce.getActor();
+        if (!booster?.id) return;
+        await pool.query(
+          `INSERT INTO reposts (post_id, actor_id, activity_uri)
+          SELECT id, $1, $2 FROM posts WHERE uri = $3
+          ON CONFLICT (activity_uri) DO NOTHING`,
+          [(await persistActor(booster))?.id, announce.id?.href, originalPostUri]
+        );
+      } catch (error) {
+        console.error("Error handling Announce:", error);
+      }
+    })     
     .on(Undo, async (ctx, undo) => {
       try {
-        const follow = await undo.getObject();
-        if (!(follow instanceof Follow)) return;
-        if (!follow.objectId || !undo.actorId) return;
-        const parsed = ctx.parseUri(follow.objectId);
-        if (parsed?.type !== "actor") return;
-    
-        await pool.query(
-          `DELETE FROM follows
-           WHERE following_id = (SELECT id FROM actors WHERE uri = $1)
-             AND follower_id = (SELECT id FROM actors WHERE uri = $2)`,
-          [follow.objectId.href, undo.actorId.href]
-        );
+        const activity = await undo.getObject();
+        if(!activity) return;
+        if (!(activity.id || undo.actorId)) return;
+        if (activity instanceof Follow){
+          await pool.query(
+            `DELETE FROM follows
+             WHERE following_id = (SELECT id FROM actors WHERE uri = $1)
+               AND follower_id = (SELECT id FROM actors WHERE uri = $2)`,
+            [activity.objectId?.href, undo.actorId?.href]
+          );
+        } else if (activity instanceof Like) {
+            await pool.query(
+              `DELETE FROM likes WHERE activity_uri = $1`,
+            [activity.id?.href]
+          );
+        } else if (activity instanceof Announce) {
+            await pool.query(
+              `DELETE FROM reposts WHERE activity_uri = $1`,
+            [activity.id?.href]
+          );
+        }
       } catch (error) {
         console.error("Undo handler error:", error);
       }

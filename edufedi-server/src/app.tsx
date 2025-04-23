@@ -7,8 +7,9 @@ import { cors } from "hono/cors"; // CORS middleware
 import authRoutes from "./authRoutes.tsx";
 import { getCookie } from "hono/cookie";
 import jwt from "jsonwebtoken";
-import { Create, Note, PUBLIC_COLLECTION } from "@fedify/fedify"
+import { Announce, Create, Like, Note, PUBLIC_COLLECTION, Undo } from "@fedify/fedify"
 import { Temporal } from "@js-temporal/polyfill";
+import { createSignature } from "./signature.ts";
 
 const FEDERATION_PROTOCOL = "https"
 const FEDERATION_HOST = "edufedi.com";
@@ -297,82 +298,174 @@ app.post("/api/posts/:postId/like", async (c) => {
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
 
-  // Get actor_id for this user
-  const actorResult = await pool.query(
-    `SELECT id FROM actors WHERE user_id = $1`,
-    [userId]
-  );
-  const actor = actorResult.rows[0];
-  if (!actor) return c.text("Actor not found", 404);
+  const [actor, post] = await Promise.all([
+    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
+    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+  ]);
+  
+  const like = new Like({
+    id: new URL(`${post.rows[0].uri}#like`),
+    actor: new URL(actor.rows[0].uri),
+    object: new URL(post.rows[0].uri),
+    to: PUBLIC_COLLECTION
+  });
 
-  // Insert like (ignore if already exists)
+  // Send to original post's inbox
+  const parsed = new URL(post.rows[0].uri);
+  const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
+  
+  await fetch(inbox, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/activity+json",
+      "Signature": await createSignature(like, actor.rows[0]),
+    },
+    body: JSON.stringify(like),
+  });
+  // Store locally
   await pool.query(
-    `INSERT INTO likes (post_id, actor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-    [postId, actor.id]
+    `INSERT INTO likes (post_id, actor_id, activity_uri)
+    VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [postId, actor.rows[0].id, like.id?.href]
   );
+
   return c.json({ success: true });
 });
-
 // Unlike a post
 app.delete("/api/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
+  const postId = c.req.param("postId");
   const userId = (c as any).user.id;
 
-  // Get actor_id for this user
-  const actorResult = await pool.query(
-    `SELECT id FROM actors WHERE user_id = $1`,
-    [userId]
-  );
-  const actor = actorResult.rows[0];
-  if (!actor) return c.text("Actor not found", 404);
+  const [actor, post] = await Promise.all([
+    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
+    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+  ]);
+  
+  const undo = new Undo({
+    id: new URL(`${post.rows[0].uri}#undo-like`),
+    actor: new URL(actor.rows[0].uri),
+    object: new URL(`${post.rows[0].uri}#like`),
+    to: PUBLIC_COLLECTION
+  });
 
+  // Send to original post's inbox
+  const parsed = new URL(post.rows[0].uri);
+  const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
+  
+  await fetch(inbox, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/activity+json",
+      "Signature": await createSignature(undo, actor.rows[0]),
+    },
+    body: JSON.stringify(undo),
+  });
+
+  // Delete locally
   await pool.query(
     `DELETE FROM likes WHERE post_id = $1 AND actor_id = $2`,
-    [postId, actor.id]
+    [postId, actor.rows[0].id]
   );
+  
   return c.json({ success: true });
 });
 
 // Repost a post
 app.post("/api/posts/:postId/repost", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
+  const postId = c.req.param("postId");
   const userId = (c as any).user.id;
 
-  // Get actor_id for this user
-  const actorResult = await pool.query(
-      `SELECT id FROM actors WHERE user_id = $1`,
-      [userId]
-  );
+  const [actorResult, postResult] = await Promise.all([
+    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
+    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+  ]);
+  
   const actor = actorResult.rows[0];
-  if (!actor) return c.text("Actor not found", 404);
+  const post = postResult.rows[0];
+  if (!actor || !post) return c.text("Not found", 404);
 
+  // Create Announce activity
+  const repost = new Announce({
+    id: new URL(`${post.uri}#boost-${Date.now()}`),
+    actor: new URL(actor.uri),
+    object: new URL(post.uri),
+    to: PUBLIC_COLLECTION,
+    published: Temporal.Instant.from(new Date().toISOString())
+  });
+
+  // Send to original post's inbox
+  const parsed = new URL(post.uri);
+  const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
+  
+  await fetch(inbox, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/activity+json",
+      "Signature": await createSignature(repost, actor),
+    },
+    body: JSON.stringify(repost),
+  });
+
+  // Store locally
   await pool.query(
-      `INSERT INTO reposts (post_id, actor_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [postId, actor.id]
+    `INSERT INTO announces (post_id, actor_id, activity_uri)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [postId, actor.id, repost.id?.href]
   );
+  
   return c.json({ success: true });
 });
 
 // Undo repost
 app.delete("/api/posts/:postId/repost", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
+  const postId = c.req.param("postId");
   const userId = (c as any).user.id;
 
-  // Get actor_id for this user
-  const actorResult = await pool.query(
-      `SELECT id FROM actors WHERE user_id = $1`,
-      [userId]
-  );
+  const [actorResult, postResult] = await Promise.all([
+    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
+    pool.query(`
+      SELECT announces.activity_uri, posts.uri 
+      FROM announces 
+      JOIN posts ON announces.post_id = posts.id 
+      WHERE announces.post_id = $1 AND announces.actor_id = $2
+    `, [postId, (c as any).user.id])
+  ]);
+  
   const actor = actorResult.rows[0];
-  if (!actor) return c.text("Actor not found", 404);
+  const repostRecord = postResult.rows[0];
+  if (!actor || !repostRecord) return c.text("Not found", 404);
 
+  // Create Undo activity
+  const undo = new Undo({
+    id: new URL(`${repostRecord.uri}#undo-boost-${Date.now()}`),
+    actor: new URL(actor.uri),
+    object: new URL(repostRecord.activity_uri),
+    to: PUBLIC_COLLECTION,
+    published: Temporal.Instant.from(new Date().toISOString())
+  });
+
+  // Send to original post's inbox
+  const parsed = new URL(repostRecord.uri);
+  const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
+  
+  await fetch(inbox, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/activity+json",
+      "Signature": await createSignature(undo, actor),
+    },
+    body: JSON.stringify(undo),
+  });
+
+  // Delete locally
   await pool.query(
-      `DELETE FROM reposts WHERE post_id = $1 AND actor_id = $2`,
-      [postId, actor.id]
+    `DELETE FROM announces WHERE post_id = $1 AND actor_id = $2`,
+    [postId, actor.id]
   );
+  
   return c.json({ success: true });
 });
 
