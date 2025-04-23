@@ -101,16 +101,16 @@ const Homepage: React.FC = (): React.ReactElement => {
 
         {/* Timeline */}
         <Grid
-          container
           size={{ xs: 12, md: 6 }}
           sx={{
-            height: "100%",
-            minHeight: 0,
-            overflowY: "auto",
-            paddingX: "20px",
-            paddingY: "20px",
-            display: "flex",
-            alignItems: "stretch",
+              height: "100%",
+              minHeight: 0,
+              overflowY: "auto",
+              paddingX: "20px",
+              paddingY: "20px",
+              display: "flex",
+              alignItems: "stretch",
+              flexDirection: "column"
           }}
         >
           {isLoggedIn && posts.length > 0 ? (

@@ -6,6 +6,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
+  "https://edufedi.com",
 ];
 
 app.use("*", async (c, next) => {

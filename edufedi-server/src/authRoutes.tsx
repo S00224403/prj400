@@ -11,6 +11,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
+  "https://edufedi.com",
 ];
 const FEDERATION_PROTOCOL = "https"
 const FEDERATION_HOST = "edufedi.com";

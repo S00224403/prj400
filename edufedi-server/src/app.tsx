@@ -18,6 +18,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://edufedi-frontend.onrender.com",
   "https://www.edufedi.com",
+  "https://edufedi.com",
 ];
 console.log("Active")
 // Middleware for federation
