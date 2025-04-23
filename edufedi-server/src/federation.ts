@@ -437,7 +437,7 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
                 content: post.content,
                 published: Temporal.Instant.from(post.created.toISOString()),
                 attribution: ctx.getActorUri(identifier),
-                to: [PUBLIC_COLLECTION] as unknown as URL
+                to: PUBLIC_COLLECTION
               })
             })
           ),

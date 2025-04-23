@@ -137,7 +137,8 @@ app.post("/users/:username/posts", async (c) => {
     const post = insertResult.rows[0];
 
     // Generate the real URI
-    const realUri = `${FEDERATION_PROTOCOL}://${FEDERATION_HOST}/${username}/posts/${post.id}`;
+    const ctx = fedi.createContext(c.req.raw, { contextData: undefined });
+    const realUri = ctx.getObjectUri(Note, { identifier: username, id: post.id });
 
     // Update the post with the real URI
     await pool.query(
@@ -151,7 +152,6 @@ app.post("/users/:username/posts", async (c) => {
 
     // Return the post with the real URI
     post.uri = realUri;
-    const ctx = fedi.createContext(c.req.raw, { contextData: undefined });
     const note = new Note({
       id: ctx.getObjectUri(Note, { identifier: username, id: post.id }),
       content: post.content,
