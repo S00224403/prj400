@@ -79,27 +79,46 @@ import {
         "SELECT * FROM users WHERE username = $1",
         [identifier]
       );
-      if (userResult.rows.length === 0) return [];
+      const user = userResult.rows[0];
+      if (!user) return [];
   
-      const keys = await Promise.all(
-        ["RSASSA-PKCS1-v1_5", "Ed25519"].map(async (type) => {
-          const res = await pool.query(
-            "SELECT * FROM keys WHERE user_id = $1 AND type = $2",
-            [userResult.rows[0].id, type]
+      const keyTypes = ["RSASSA-PKCS1-v1_5", "Ed25519"] as const;
+      const pairs: CryptoKeyPair[] = [];
+  
+      for (const keyType of keyTypes) {
+        let keyRow = (await pool.query(
+          "SELECT * FROM keys WHERE user_id = $1 AND type = $2",
+          [user.id, keyType]
+        )).rows[0];
+  
+        if (!keyRow) {
+          console.log(`Generating ${keyType} keys for ${identifier}...`);
+          const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
+          await pool.query(
+            `INSERT INTO keys (user_id, type, private_key, public_key)
+             VALUES ($1, $2, $3, $4)`,
+            [
+              user.id,
+              keyType,
+              JSON.stringify(await exportJwk(privateKey)),
+              JSON.stringify(await exportJwk(publicKey)),
+            ]
           );
-          return res.rows[0];
-        })
-      );
+          keyRow = { privateKey, publicKey };
+        }
   
-      return keys.filter(Boolean).map(async key => ({
-        publicKey: await importJwk(JSON.parse(key.public_key), "public"),
-        privateKey: await importJwk(JSON.parse(key.private_key), "private")
-      }));
+        pairs.push({
+          privateKey: await importJwk(JSON.parse(keyRow.private_key), "private"),
+          publicKey: await importJwk(JSON.parse(keyRow.public_key), "public"),
+        });
+      }
+  
+      return pairs;
     } catch (error) {
-      console.error("[ERROR] Key pair dispatch failed:", error);
+      console.error("Key pair dispatch failed:", error);
       return [];
     }
-  });
+  });  
   
   federation
     .setInboxListeners("/users/{identifier}/inbox", "/inbox")
@@ -174,36 +193,22 @@ import {
     })      
     .on(Undo, async (ctx, undo) => {
       try {
-        const object = await undo.getObject();
-        if (!(object instanceof Follow)) return;
-        if (undo.actorId == null || object.objectId == null) return;
+        const follow = await undo.getObject();
+        if (!(follow instanceof Follow)) return;
+        if (!follow.objectId || !undo.actorId) return;
+        const parsed = ctx.parseUri(follow.objectId);
+        if (parsed?.type !== "actor") return;
     
-        const parsed = ctx.parseUri(object.objectId);
-        if (parsed == null || parsed.type !== "actor") return;
-    
-        // Delete the follow relationship from the database
         await pool.query(
-          `
-          DELETE FROM follows
-          WHERE following_id = (
-            SELECT actors.id
-            FROM actors
-            JOIN users ON actors.user_id = users.id
-            WHERE users.username = $1
-          ) AND follower_id = (
-            SELECT id FROM actors WHERE uri = $2
-          )
-          `,
-          [parsed.identifier, undo.actorId.href]
+          `DELETE FROM follows
+           WHERE following_id = (SELECT id FROM actors WHERE uri = $1)
+             AND follower_id = (SELECT id FROM actors WHERE uri = $2)`,
+          [follow.objectId.href, undo.actorId.href]
         );
       } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error handling Undo activity:", error.message);
-        } else {
-          console.error("Unknown error handling Undo activity:", error);
-        }
+        console.error("Undo handler error:", error);
       }
-    })
+    })    
     .on(Accept, async (ctx, accept) => {
       try {
         console.log("Accept activity received:", accept);
