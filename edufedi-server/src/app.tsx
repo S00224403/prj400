@@ -56,7 +56,7 @@ app.route("/auth", authRoutes);
 // Route: Get user profile
 app.get("/users/:username", async (c) => {
   try {
-    if (!(c as any).user) return c.text("Unauthorised", 401);
+    // if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const result = await pool.query(
       `
