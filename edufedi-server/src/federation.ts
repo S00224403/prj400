@@ -425,27 +425,27 @@ import {
     );
     async function persistActor(actor: APActor): Promise<Actor | null> {
       if (actor.id == null || actor.inboxId == null) {
-        console.log("Actor is missing required fields: {actor}", { actor });
+        console.log("[DEBUG] Actor missing ID or inbox:", actor);
         return null;
       }
     
       try {
-        let pubKey;
+        // Fetch public key
+        let publicKey: string | null = null;
         try {
-          pubKey = await actor.getPublicKey?.(); // Fetch the key
-          logger.debug("Fetched public key for {actorUri}: {publicKey}", { actorUri: actor.id.href, publicKey: pubKey ? pubKey.toString().substring(0, 30) + '...' : null });
+          const key = await actor.getPublicKey?.();
+          publicKey = key instanceof CryptoKey ? JSON.stringify(await exportJwk(key)) : null;
+          console.log("[DEBUG] Fetched public key for", actor.id.href, ":", publicKey?.substring(0, 50));
         } catch (e) {
-          logger.error("Could not fetch public key for actor {actorUri}: {error}", { actorUri: actor.id.href, error: (e as Error).message });
+          console.error("[ERROR] Failed to fetch public key for", actor.id.href, ":", e);
         }
-
-  
-    const result = await pool.query(
-          `
-          INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url, public_key)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (uri) DO UPDATE SET public_key = EXCLUDED.public_key
-          RETURNING *
-          `,
+    
+        // Insert/update actor
+        const result = await pool.query(
+          `INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url, public_key)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (uri) DO UPDATE SET public_key = EXCLUDED.public_key
+           RETURNING *`,
           [
             actor.id.href,
             await getActorHandle(actor),
@@ -453,20 +453,17 @@ import {
             actor.inboxId.href,
             actor.endpoints?.sharedInbox?.href,
             actor.url?.href,
-            pubKey, // Store without headers/newlines
+            publicKey, // May be NULL
           ]
         );
-        logger.debug("Persisted actor {actorUri} with ID {actorId}. Public key stored: {hasKey}", {
-          actorUri: actor.id.href,
-          actorId: result.rows[0]?.id,
-          hasKey: result.rows[0]?.public_key != null
-        });
+        
+        console.log("[DEBUG] Persisted actor:", result.rows[0]);
         return result.rows[0] ?? null;
       } catch (error) {
-        console.error("Error persisting actor:", (error as Error).message);
-        return null; // Return null if there is an error
+        console.error("[ERROR] Database error in persistActor:", error);
+        return null;
       }
-    }
+    }    
     
   export default federation;
   
