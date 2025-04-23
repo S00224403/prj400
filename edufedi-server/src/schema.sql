@@ -9,21 +9,19 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS actors (
   id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE, -- Link to users table via UUID
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
   uri TEXT NOT NULL UNIQUE CHECK (uri <> ''),
   handle TEXT NOT NULL UNIQUE CHECK (handle <> ''),
   name TEXT,
-  inbox_url TEXT NOT NULL UNIQUE CHECK (
-    inbox_url LIKE 'https://%' OR inbox_url LIKE 'http://%'
-  ),
+  inbox_url TEXT NOT NULL CHECK (inbox_url LIKE 'https://%' OR inbox_url LIKE 'http://%'),
   shared_inbox_url TEXT CHECK (
     shared_inbox_url LIKE 'https://%' OR shared_inbox_url LIKE 'http://%'
   ),
   url TEXT CHECK (
     url LIKE 'https://%' OR url LIKE 'http://%'
   ),
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL),
-  publicKey TEXT NOT NULL CHECK (publicKey <> ''),
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  publicKey TEXT CHECK (publicKey <> '') -- Changed to nullable
 );
 
 CREATE TABLE IF NOT EXISTS keys (
@@ -44,11 +42,13 @@ CREATE TABLE IF NOT EXISTS follows (
 
 CREATE TABLE IF NOT EXISTS posts (
   id SERIAL PRIMARY KEY,
-  uri TEXT NOT NULL UNIQUE CHECK (uri <> ''),
+  uri TEXT UNIQUE CHECK (uri <> ''), -- Made nullable for initial insertion
   actor_id INTEGER NOT NULL REFERENCES actors(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (content <> ''),
-  url TEXT CHECK (url LIKE 'https://%' OR url LIKE 'http://%'),
-  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP CHECK (created IS NOT NULL)
+  url TEXT CHECK (
+    url LIKE 'https://%' OR url LIKE 'http://%' OR url IS NULL
+  ), -- Allow null during creation
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS attachments (

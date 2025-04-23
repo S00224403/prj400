@@ -63,6 +63,7 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
         preferredUsername: identifier,
         name: user.name,
         inbox: ctx.getInboxUri(identifier),
+        outbox: ctx.getOutboxUri(identifier),
         endpoints: new Endpoints({
           sharedInbox: ctx.getInboxUri(),
         }),

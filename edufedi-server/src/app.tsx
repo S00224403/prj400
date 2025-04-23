@@ -108,7 +108,7 @@ app.post("/users/:username/posts", async (c) => {
     const username = c.req.param("username");
     const formData = await c.req.formData();
     const content = formData.get("content");
-
+    const ctx = fedi.createContext(c.req.raw, { contextData: undefined });
     if (!content || typeof content !== "string") {
       return c.text("Invalid content", 400);
     }
@@ -127,27 +127,23 @@ app.post("/users/:username/posts", async (c) => {
 
     // Insert with a placeholder for uri
     const insertResult = await pool.query(
-      `
-      INSERT INTO posts (actor_id, content, uri)
-      VALUES ($1, $2, $3)
-      RETURNING *
-      `,
-      [actor.id, content, "TEMP"]
+      `INSERT INTO posts (actor_id, content) 
+       VALUES ($1, $2) 
+       RETURNING id`, // Get the generated ID
+      [actor.id, content]
     );
+    
     const post = insertResult.rows[0];
-
-    // Generate the real URI
-    const ctx = fedi.createContext(c.req.raw, { contextData: undefined });
-    const realUri = ctx.getObjectUri(Note, { identifier: username, id: post.id });
-
-    // Update the post with the real URI
+    const realUri = ctx.getObjectUri(Note, { 
+      identifier: username, 
+      id: post.id 
+    });
+    
     await pool.query(
-      `
-      UPDATE posts
-      SET uri = $1, url = $1
-      WHERE id = $2
-      `,
-      [realUri, post.id]
+      `UPDATE posts 
+       SET uri = $1, url = $1 
+       WHERE id = $2`,
+      [realUri.href, post.id]
     );
 
     // Return the post with the real URI
