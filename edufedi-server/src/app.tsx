@@ -7,6 +7,8 @@ import { cors } from "hono/cors"; // CORS middleware
 import authRoutes from "./authRoutes.tsx";
 import { getCookie } from "hono/cookie";
 import jwt from "jsonwebtoken";
+import { Create, Note, PUBLIC_COLLECTION } from "@fedify/fedify"
+import { Temporal } from "@js-temporal/polyfill";
 
 const FEDERATION_PROTOCOL = "https"
 const FEDERATION_HOST = "edufedi.com";
@@ -19,7 +21,7 @@ const allowedOrigins = [
 ];
 console.log("Active")
 // Middleware for federation
-app.use(federation(fedi, () => undefined));
+app.use("*", federation(fedi, (c) => ({ context: c })));
 // Attach user info to context if session_token is present
 app.use("*", async (c, next) => {
   const origin = c.req.header("origin");
@@ -78,7 +80,7 @@ app.get("/users/:username", async (c) => {
 // Route: Get posts by user
 app.get("/users/:username/posts", async (c) => {
   try {
-    if (!(c as any).user) return c.text("Unauthorised", 401);
+    // if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
     const result = await pool.query(
       `
@@ -149,7 +151,22 @@ app.post("/users/:username/posts", async (c) => {
 
     // Return the post with the real URI
     post.uri = realUri;
-    return c.json(post);
+    const ctx = fedi.createContext(c.req.raw, { contextData: undefined });
+    const note = new Note({
+      id: ctx.getObjectUri(Note, { identifier: username, id: post.id }),
+      content: post.content,
+      published: Temporal.Instant.from(post.created.toISOString()),
+      attribution: ctx.getActorUri(username),
+      to: PUBLIC_COLLECTION
+    });
+    
+    await ctx.sendActivity(
+      { identifier: username },
+      "followers",
+      new Create({ object: note })
+    );
+
+  return c.json(post);
   } catch (error) {
     console.error("Error in /users/:username/posts handler:", (error as Error).message);
     return c.text("Internal Server Error", 500);

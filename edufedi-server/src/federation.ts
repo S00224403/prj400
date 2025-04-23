@@ -3,7 +3,7 @@ import {
     Endpoints,
     Follow,
     Note,
-    PUBLIC_COLLECTION,
+    OrderedCollection,
     Person,
     Undo,
     createFederation,
@@ -11,10 +11,16 @@ import {
     generateCryptoKeyPair,
     getActorHandle,
     importJwk,
-    isActor,                
+    isActor,
+    Create, 
+    type PageItems,
+    type Activity,         
     type Actor as APActor,  
     type Recipient,
   } from "@fedify/fedify";
+
+import { PUBLIC_COLLECTION } from "@fedify/fedify";
+
   import type {
     Actor,
     Key,
@@ -26,7 +32,8 @@ import {
   import pool from "./db.ts"; // PostgreSQL connection pool
   import { Temporal } from "@js-temporal/polyfill";
   const logger = getLogger("edufedi");
-  
+  const FEDERATION_PROTOCOL = "https"
+  const FEDERATION_HOST = "edufedi.com";
   const federation = createFederation({
     kv: new MemoryKvStore(),
     queue: new InProcessMessageQueue(),
@@ -324,7 +331,6 @@ import {
       "/users/{identifier}/posts/{id}",
       async (ctx, values) => {
         try {
-          // Query the database to fetch the post
           const postResult = await pool.query(
             `
             SELECT posts.*
@@ -346,7 +352,6 @@ import {
               ? post.created.replace(" ", "T") + "Z"
               : post.created.toISOString(); // Handle Date objects
     
-          // Create and return a new Note object based on the query result
           return new Note({
             id: ctx.getObjectUri(Note, values),
             attribution: ctx.getActorUri(values.identifier),
@@ -408,6 +413,37 @@ import {
         return null;
       }
     }      
+    federation
+    .setOutboxDispatcher(
+      "/users/{identifier}/outbox",
+      async (ctx, identifier) => {
+        const posts = await pool.query(
+          `SELECT * FROM posts 
+           JOIN actors ON posts.actor_id = actors.id 
+           JOIN users ON users.id = actors.user_id 
+           WHERE users.username = $1 
+           ORDER BY posts.created DESC 
+           LIMIT 20`,
+          [identifier]
+        );
     
+        return {
+          items: posts.rows.map(post => 
+            new Create({
+              id: new URL(`/users/${identifier}/activities/${post.id}`, ctx.url),
+              actor: ctx.getActorUri(identifier),
+              object: new Note({
+                id: ctx.getObjectUri(Note, { identifier, id: post.id }),
+                content: post.content,
+                published: Temporal.Instant.from(post.created.toISOString()),
+                attribution: ctx.getActorUri(identifier),
+                to: [PUBLIC_COLLECTION] as unknown as URL
+              })
+            })
+          ),
+          nextCursor: null
+        };
+      }
+    )
   export default federation;
   
