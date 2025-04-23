@@ -129,7 +129,7 @@ app.post("/users/:username/posts", async (c) => {
     const insertResult = await pool.query(
       `INSERT INTO posts (actor_id, content) 
        VALUES ($1, $2) 
-       RETURNING id`, // Get the generated ID
+       RETURNING *`, // Get the generated ID
       [actor.id, content]
     );
     
