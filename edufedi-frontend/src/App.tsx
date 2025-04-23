@@ -14,7 +14,7 @@ const App: React.FC = () => (
         <Route path="/signup" element={<SignUp />} />
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/posts/:postId" element={<PostPage />} />
+        <Route path="/users/:username/posts/:postId" element={<PostPage />} />
         <Route path="/users/:username" element={<UserPage />} />
       </Routes>
     </AuthProvider>

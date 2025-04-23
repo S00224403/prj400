@@ -113,7 +113,7 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 </Box>
 
                 {/* Post Content */}
-                <Typography variant="body1" sx={{ marginBottom: "10px", cursor: "pointer"  }} onClick={() => window.location.href = `/posts/${id}`}>
+                <Typography variant="body1" sx={{ marginBottom: "10px", cursor: "pointer"  }} onClick={() => window.location.href = `/users/${username}/posts/${id}`}>
                     {renderContentWithHashtags(content)}
                 </Typography>
 
