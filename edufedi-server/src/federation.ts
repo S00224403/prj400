@@ -40,7 +40,7 @@ import {
         `
         SELECT *
         FROM users
-        JOIN actors ON (users.id = actors.user_id)
+        JOIN actors ON users.id = actors.user_id
         WHERE users.username = $1
         `,
         [identifier]
