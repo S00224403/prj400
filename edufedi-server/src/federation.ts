@@ -430,20 +430,20 @@ import {
       }
     
       try {
-        // Fetch and store the public key:
-        const publicKey = await actor.getPublicKey();
+        let pubKey;
+        try {
+          pubKey = await actor.getPublicKey?.(); // Fetch the key
+          logger.debug("Fetched public key for {actorUri}: {publicKey}", { actorUri: actor.id.href, publicKey: pubKey ? pubKey.toString().substring(0, 30) + '...' : null });
+        } catch (e) {
+          logger.error("Could not fetch public key for actor {actorUri}: {error}", { actorUri: actor.id.href, error: (e as Error).message });
+        }
 
-        const result = await pool.query(
+  
+    const result = await pool.query(
           `
           INSERT INTO actors (uri, handle, name, inbox_url, shared_inbox_url, url, public_key)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
-          ON CONFLICT (uri) DO UPDATE SET
-            handle = EXCLUDED.handle,
-            name = EXCLUDED.name,
-            inbox_url = EXCLUDED.inbox_url,
-            shared_inbox_url = EXCLUDED.shared_inbox_url,
-            url = EXCLUDED.url,
-            public_key = EXCLUDED.public_key
+          ON CONFLICT (uri) DO UPDATE SET public_key = EXCLUDED.public_key
           RETURNING *
           `,
           [
@@ -453,11 +453,15 @@ import {
             actor.inboxId.href,
             actor.endpoints?.sharedInbox?.href,
             actor.url?.href,
-            publicKey, // Store public key
+            pubKey, // Store without headers/newlines
           ]
         );
-    
-        return result.rows[0] ?? null; // Return the first row or null if no row is returned
+        logger.debug("Persisted actor {actorUri} with ID {actorId}. Public key stored: {hasKey}", {
+          actorUri: actor.id.href,
+          actorId: result.rows[0]?.id,
+          hasKey: result.rows[0]?.public_key != null
+        });
+        return result.rows[0] ?? null;
       } catch (error) {
         console.error("Error persisting actor:", (error as Error).message);
         return null; // Return null if there is an error
