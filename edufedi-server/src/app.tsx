@@ -51,10 +51,10 @@ app.use("*", async (c, next) => {
 });
 
 // Auth Routes
-app.route("/auth", authRoutes);
+app.route("/api/auth", authRoutes);
 
 // Route: Get user profile
-app.get("/users/:username", async (c) => {
+app.get("api/users/:username", async (c) => {
   try {
     // if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
@@ -78,7 +78,7 @@ app.get("/users/:username", async (c) => {
 });
 
 // Route: Get posts by user
-app.get("/users/:username/posts", async (c) => {
+app.get("/api/users/:username/posts", async (c) => {
   try {
     // if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
@@ -102,7 +102,7 @@ app.get("/users/:username/posts", async (c) => {
 });
 
 // Route: Create a new post
-app.post("/users/:username/posts", async (c) => {
+app.post("/api/users/:username/posts", async (c) => {
   try {
     if (!(c as any).user) return c.text("Unauthorised", 401);
     const username = c.req.param("username");
@@ -198,7 +198,7 @@ app.get("/users/:username/followers", async (c) => {
   }
 });
 // Route: Get all posts on the server sorted by latest
-app.get("/posts", async (c) => {
+app.get("/api/posts", async (c) => {
   try {
     if (!(c as any).user) return c.text("Unauthorised", 401);
     const userId = (c as any).user.id;
@@ -238,7 +238,7 @@ app.get("/posts", async (c) => {
 });
 
 // Route: Get a specific post by ID
-app.get("/posts/:postId", async (c) => {
+app.get("/api/posts/:postId", async (c) => {
   if (!(c as any).user) return c.text("Unauthorised", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -277,7 +277,7 @@ app.get("/posts/:postId", async (c) => {
 });
 
 // Like a post
-app.post("/posts/:postId/like", async (c) => {
+app.post("/api/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -299,7 +299,7 @@ app.post("/posts/:postId/like", async (c) => {
 });
 
 // Unlike a post
-app.delete("/posts/:postId/like", async (c) => {
+app.delete("/api/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -320,7 +320,7 @@ app.delete("/posts/:postId/like", async (c) => {
 });
 
 // Repost a post
-app.post("/posts/:postId/repost", async (c) => {
+app.post("/api/posts/:postId/repost", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -341,7 +341,7 @@ app.post("/posts/:postId/repost", async (c) => {
 });
 
 // Undo repost
-app.delete("/posts/:postId/repost", async (c) => {
+app.delete("/api/posts/:postId/repost", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -361,7 +361,7 @@ app.delete("/posts/:postId/repost", async (c) => {
   return c.json({ success: true });
 });
 
-app.post("/posts/:postId/comments", async (c) => {
+app.post("/api/posts/:postId/comments", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
@@ -385,7 +385,7 @@ app.post("/posts/:postId/comments", async (c) => {
   );
   return c.json({ success: true });
 });
-app.get("/posts/:postId/comments", async (c) => {
+app.get("/api/posts/:postId/comments", async (c) => {
   const postId = Number(c.req.param("postId"));
   const result = await pool.query(
     `SELECT comments.*, actors.name, users.username
