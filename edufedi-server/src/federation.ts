@@ -373,20 +373,17 @@ import {
         return null;
       }
     
+      let publicKey: string | null = null;
       try {
-        // Fetch public key
-        let publicKey: string | null = null;
-        try {
-          const key = await actor.getPublicKey?.();
-          publicKey = key instanceof CryptoKey 
-            ? JSON.stringify(await exportJwk(key)) 
-            : null;
-          console.log("[DEBUG] Fetched public key for", actor.id.href);
-        } catch (e) {
-          console.error("[ERROR] Failed to fetch public key:", e);
-        }
+        const key = await actor.getPublicKey?.();
+        publicKey = key instanceof CryptoKey 
+          ? JSON.stringify(await exportJwk(key))
+          : null;
+      } catch (e) {
+        console.error("[ERROR] Failed to fetch public key:", e);
+      }
     
-        // Insert/update actor
+      try {
         const result = await pool.query(
           `INSERT INTO actors (
             uri, handle, name, inbox_url, 
@@ -405,14 +402,12 @@ import {
             publicKey // Can be NULL
           ]
         );
-        
-        console.log("[DEBUG] Persisted actor:", result.rows[0]?.uri);
         return result.rows[0] ?? null;
       } catch (error) {
         console.error("[ERROR] Database error:", error);
         return null;
       }
-    }        
+    }      
     
   export default federation;
   
