@@ -148,18 +148,22 @@ app.post("/users/:username/posts", async (c) => {
 
     // Return the post with the real URI
     post.uri = realUri;
-    const note = new Note({
-      id: ctx.getObjectUri(Note, { identifier: username, id: post.id }),
-      content: post.content,
-      published: Temporal.Instant.from(post.created.toISOString()),
-      attribution: ctx.getActorUri(username),
-      to: PUBLIC_COLLECTION
+    const actorUri = ctx.getActorUri(username);
+    const createActivity = new Create({
+      actor: actorUri,  // Explicitly set actor
+      object: new Note({
+        id: ctx.getObjectUri(Note, { identifier: username, id: post.id }),
+        content: post.content,
+        published: Temporal.Instant.from(post.created.toISOString()),
+        attribution: actorUri,  
+        to: PUBLIC_COLLECTION
+      })
     });
-    
+
     await ctx.sendActivity(
       { identifier: username },
       "followers",
-      new Create({ object: note })
+      createActivity  // Send the fully-configured Create activity
     );
 
   return c.json(post);
