@@ -92,12 +92,15 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 alignSelf: "center",
             }}
         >
-            <CardContent 
-                onClick={() => window.location.href = `/posts/${id}`}
-                sx={{ cursor: "pointer" }}
-            >
+            <CardContent             >
                 {/* User Info */}
-                <Box display="flex" alignItems="center" marginBottom={2}>
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    marginBottom={2}
+                    sx={{ cursor: "pointer" }}
+                    onClick={() => window.location.href = `/users/${username}`}
+                >
                     <Avatar sx={{ marginRight: "10px", backgroundColor: "#6200ea" }}>{name ? name[0] : "?"}</Avatar>
                     <Box>
                         <Typography variant="subtitle1" fontWeight="bold">
@@ -110,7 +113,7 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 </Box>
 
                 {/* Post Content */}
-                <Typography variant="body1" sx={{ marginBottom: "10px" }}>
+                <Typography variant="body1" sx={{ marginBottom: "10px", cursor: "pointer"  }} onClick={() => window.location.href = `/posts/${id}`}>
                     {renderContentWithHashtags(content)}
                 </Typography>
 

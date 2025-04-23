@@ -2,6 +2,11 @@ export interface User {
   name: string;
   username: string;
   avatar?: string;
+  created: string;
+  post_count: number;
+  follower_count: number;
+  following_count: number;
+  profile_picture?: string;
 }
   export interface Actor {
     id: number;

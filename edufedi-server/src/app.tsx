@@ -60,10 +60,16 @@ app.get("api/users/:username", async (c) => {
     const username = c.req.param("username");
     const result = await pool.query(
       `
-      SELECT users.*, actors.*
+      SELECT
+        users.*, 
+        actors.*,
+        (SELECT COUNT(*) FROM follows WHERE following_id = actors.id) AS follower_count,
+        (SELECT COUNT(*) FROM follows WHERE follower_id = actors.id) AS following_count,
+        (SELECT COUNT(*) FROM posts WHERE actor_id = actors.id) AS post_count
       FROM users
-      JOIN actors ON users.id = actors.user_id
-      WHERE username = $1
+      JOIN actors ON actors.user_id = users.id
+      WHERE users.username = $1
+
       `,
       [username]
     );
@@ -84,11 +90,19 @@ app.get("/api/users/:username/posts", async (c) => {
     const username = c.req.param("username");
     const result = await pool.query(
       `
-      SELECT posts.*, users.username, actors.name
+      SELECT 
+      posts.*, 
+      users.username, 
+      actors.name,
+      COUNT(likes.post_id) AS like_count,
+      COUNT(DISTINCT reposts.post_id) AS repost_count
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id
+      LEFT JOIN likes ON posts.id = likes.post_id
+      LEFT JOIN reposts ON posts.id = reposts.post_id
       WHERE users.username = $1
+      GROUP BY posts.id, users.username, actors.name
       ORDER BY posts.created DESC
       `,
       [username]
@@ -398,6 +412,115 @@ app.get("/api/posts/:postId/comments", async (c) => {
   );
   
   return c.json(result.rows);
+});
+
+// Follow a user
+app.post("/api/users/:username/follow", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const targetUsername = c.req.param("username");
+  const followerId = (c as any).user.id;
+
+  try {
+    // Get target user's actor ID
+    const targetResult = await pool.query(
+      `SELECT actors.id 
+       FROM actors 
+       JOIN users ON actors.user_id = users.id 
+       WHERE users.username = $1`,
+      [targetUsername]
+    );
+    
+    if (targetResult.rows.length === 0) return c.text("User not found", 404);
+
+    // Get follower's actor ID
+    const followerResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [followerId]
+    );
+
+    await pool.query(
+      `INSERT INTO follows (following_id, follower_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [targetResult.rows[0].id, followerResult.rows[0].id]
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error following user:", error);
+    return c.text("Internal Server Error", 500);
+  }
+});
+
+// Unfollow a user
+app.delete("/api/users/:username/unfollow", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const targetUsername = c.req.param("username");
+  const followerId = (c as any).user.id;
+
+  try {
+    const targetResult = await pool.query(
+      `SELECT actors.id 
+       FROM actors 
+       JOIN users ON actors.user_id = users.id 
+       WHERE users.username = $1`,
+      [targetUsername]
+    );
+    
+    if (targetResult.rows.length === 0) return c.text("User not found", 404);
+
+    const followerResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [followerId]
+    );
+
+    await pool.query(
+      `DELETE FROM follows 
+       WHERE following_id = $1 AND follower_id = $2`,
+      [targetResult.rows[0].id, followerResult.rows[0].id]
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error unfollowing user:", error);
+    return c.text("Internal Server Error", 500);
+  }
+});
+
+// Check follow status
+app.get("/api/users/:username/follow-status", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const targetUsername = c.req.param("username");
+  const userId = (c as any).user.id; // This is a UUID
+
+  try {
+    // First get the actor ID for the current user (follower)
+    const followerActorResult = await pool.query(
+      `SELECT id FROM actors WHERE user_id = $1`,
+      [userId] // userId is UUID
+    );
+    
+    if (followerActorResult.rows.length === 0) {
+      return c.text("Follower actor not found", 404);
+    }
+    
+    const followerActorId = followerActorResult.rows[0].id; // This is an integer
+
+    // Then check the follow status using the integer actor IDs
+    const result = await pool.query(
+      `SELECT EXISTS (
+        SELECT 1 FROM follows
+        JOIN actors AS following ON follows.following_id = following.id
+        JOIN users ON following.user_id = users.id
+        WHERE users.username = $1 AND follows.follower_id = $2
+      )`,
+      [targetUsername, followerActorId] // followerActorId is now an integer
+    );
+
+    return c.json({ isFollowing: result.rows[0].exists });
+  } catch (error) {
+    console.error("Error checking follow status:", error);
+    return c.text("Internal Server Error", 500);
+  }
 });
 
 export default app;
