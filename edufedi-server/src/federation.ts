@@ -85,45 +85,68 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
   })
   .setKeyPairsDispatcher(async (ctx, identifier) => {
     try {
+      // Query the database for user information
       const userResult = await pool.query(
-        "SELECT * FROM users WHERE username = $1",
+        `
+        SELECT * FROM users WHERE username = $1
+        `,
         [identifier]
       );
       const user = userResult.rows[0];
-      if (!user) return [];
+      if (user == null) return []; // Return an empty array if no user is found
   
-      const keyTypes = ["RSASSA-PKCS1-v1_5", "Ed25519"] as const;
+      // Query the database for keys associated with the user
+      const keysResult = await pool.query(
+        `
+        SELECT * FROM keys WHERE keys.user_id = $1
+        `,
+        [user.id]
+      );
+      const rows = keysResult.rows;
+  
+      const keys = Object.fromEntries(
+        rows.map((row) => [row.type, row])
+      ) as Record<Key["type"], Key>;
+  
       const pairs: CryptoKeyPair[] = [];
   
-      for (const keyType of keyTypes) {
-        let keyRow = (await pool.query(
-          "SELECT * FROM keys WHERE user_id = $1 AND type = $2",
-          [user.id, keyType]
-        )).rows[0];
-  
-        if (!keyRow) {
-          console.log(`Generating ${keyType} keys for ${identifier}...`);
-          const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
-          
-          // Add validation for exported keys
-          const privateJwk = await exportJwk(privateKey);
-          const publicJwk = await exportJwk(publicKey);
-          if (!privateJwk || !publicJwk) {
-            throw new Error(`Failed to export ${keyType} keys`);
-          }
-  
-          await pool.query(
-            `INSERT INTO keys (user_id, type, private_key, public_key)
-             VALUES ($1, $2, $3, $4)`,
-            [user.id, keyType, JSON.stringify(privateJwk), JSON.stringify(publicJwk)]
+      // For each key type, check if a key pair exists; if not, generate and store it
+      for (const keyType of ["RSASSA-PKCS1-v1_5", "Ed25519"] as const) {
+        if (!keys[keyType]) {
+          logger.debug(
+            "The user {identifier} does not have an {keyType} key; creating one...",
+            { identifier, keyType }
           );
-          keyRow = { private_key: privateJwk, public_key: publicJwk };
-        }
   
-        pairs.push({
-          privateKey: await importJwk(keyRow.private_key, "private"),
-          publicKey: await importJwk(keyRow.public_key, "public"),
-        });
+          const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
+  
+          // Insert the generated key pair into the database
+          await pool.query(
+            `
+            INSERT INTO keys (user_id, type, private_key, public_key)
+            VALUES ($1, $2, $3, $4)
+            `,
+            [
+              user.id,
+              keyType,
+              JSON.stringify(await exportJwk(privateKey)),
+              JSON.stringify(await exportJwk(publicKey)),
+            ]
+          );
+  
+          pairs.push({ privateKey, publicKey });
+        } else {
+          pairs.push({
+            privateKey: await importJwk(
+              JSON.parse(keys[keyType].private_key),
+              "private"
+            ),
+            publicKey: await importJwk(
+              JSON.parse(keys[keyType].public_key),
+              "public"
+            ),
+          });
+        }
       }
   
       return pairs;
