@@ -104,22 +104,25 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
         if (!keyRow) {
           console.log(`Generating ${keyType} keys for ${identifier}...`);
           const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
+          
+          // Add validation for exported keys
+          const privateJwk = await exportJwk(privateKey);
+          const publicJwk = await exportJwk(publicKey);
+          if (!privateJwk || !publicJwk) {
+            throw new Error(`Failed to export ${keyType} keys`);
+          }
+  
           await pool.query(
             `INSERT INTO keys (user_id, type, private_key, public_key)
              VALUES ($1, $2, $3, $4)`,
-            [
-              user.id,
-              keyType,
-              JSON.stringify(await exportJwk(privateKey)),
-              JSON.stringify(await exportJwk(publicKey)),
-            ]
+            [user.id, keyType, JSON.stringify(privateJwk), JSON.stringify(publicJwk)]
           );
-          keyRow = { privateKey, publicKey };
+          keyRow = { private_key: privateJwk, public_key: publicJwk };
         }
   
         pairs.push({
-          privateKey: await importJwk(JSON.parse(keyRow.private_key), "private"),
-          publicKey: await importJwk(JSON.parse(keyRow.public_key), "public"),
+          privateKey: await importJwk(keyRow.private_key, "private"),
+          publicKey: await importJwk(keyRow.public_key, "public"),
         });
       }
   
@@ -128,7 +131,7 @@ import { PUBLIC_COLLECTION } from "@fedify/fedify";
       console.error("Key pair dispatch failed:", error);
       return [];
     }
-  });  
+  }); 
   
   federation
     .setInboxListeners("/users/{identifier}/inbox", "/inbox")

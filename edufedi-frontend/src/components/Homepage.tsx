@@ -101,6 +101,7 @@ const Homepage: React.FC = (): React.ReactElement => {
 
         {/* Timeline */}
         <Grid
+        container
           size={{ xs: 12, md: 6 }}
           sx={{
               height: "100%",
@@ -111,7 +112,6 @@ const Homepage: React.FC = (): React.ReactElement => {
               display: "flex",
               alignItems: "stretch",
               width: "100%",
-              flexDirection: "column",
           }}
         >
           {isLoggedIn && posts.length > 0 ? (

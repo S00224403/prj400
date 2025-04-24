@@ -73,8 +73,7 @@ const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
           email: formData.email,
           password: formData.password,
           display_name: formData.display_name,
-        },
-        { withCredentials: true }
+        }
       );
       setMessage("Account created! Redirecting to login...");
       setFormData({
