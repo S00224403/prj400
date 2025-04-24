@@ -1,10 +1,14 @@
 import { exportJwk, importJwk } from "@fedify/fedify";
 
 export async function createSignature(activity: object, actor: any): Promise<string> {
-  const privateKey = await importJwk(
-    JSON.parse(actor.private_key), 
-    "private"
-  );
+    if (!actor?.private_key) {
+      throw new Error("Missing private key for signing");
+    }
+    
+    const privateKey = await importJwk(
+      JSON.parse(actor.private_key), 
+      "private"
+    );
   
   const digest = await crypto.subtle.digest(
     "SHA-256",

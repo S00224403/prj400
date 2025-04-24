@@ -110,7 +110,8 @@ const Homepage: React.FC = (): React.ReactElement => {
               paddingY: "20px",
               display: "flex",
               alignItems: "stretch",
-              flexDirection: "column"
+              width: "100%",
+              flexDirection: "column",
           }}
         >
           {isLoggedIn && posts.length > 0 ? (

@@ -85,34 +85,52 @@ app.get("api/users/:username", async (c) => {
   }
 });
 
-// Route: Get posts by user
 app.get("/api/users/:username/posts", async (c) => {
   try {
-    // if (!(c as any).user) return c.text("Unauthorised", 401);
-    const username = c.req.param("username");
+    const viewedUsername = c.req.param("username");
+    if (!viewedUsername) return c.text("Username required", 400);
+
+    // Get logged-in user's actor ID (if authenticated)
+    let loggedInActorId = null;
+    console.log("Logged-in user:", (c as any));
+    if ((c as any).user) {
+      const actorResult = await pool.query(
+        "SELECT id FROM actors WHERE user_id = $1",
+        [(c as any).user.id]
+      );
+      loggedInActorId = actorResult.rows[0]?.id;
+    }
+    console.log("Logged-in actor ID:", loggedInActorId);
     const result = await pool.query(
       `
       SELECT 
-      posts.*, 
-      users.username, 
-      actors.name,
-      COUNT(likes.post_id) AS like_count,
-      COUNT(DISTINCT reposts.post_id) AS repost_count
+        posts.*,
+        users.username,
+        actors.name,
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) AS like_count,
+        (SELECT COUNT(*) FROM reposts WHERE post_id = posts.id) AS repost_count,
+        (SELECT EXISTS (
+          SELECT 1 FROM likes 
+          WHERE post_id = posts.id 
+          AND actor_id = $2
+        )) AS liked,
+        (SELECT EXISTS (
+          SELECT 1 FROM reposts 
+          WHERE post_id = posts.id 
+          AND actor_id = $2
+        )) AS reposted
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id
-      LEFT JOIN likes ON posts.id = likes.post_id
-      LEFT JOIN reposts ON posts.id = reposts.post_id
       WHERE users.username = $1
-      GROUP BY posts.id, users.username, actors.name
       ORDER BY posts.created DESC
       `,
-      [username]
+      [viewedUsername, loggedInActorId] // $1=viewed user, $2=logged-in user
     );
-    const posts = result.rows;
-    return c.json(posts);
+
+    return c.json(result.rows);
   } catch (error) {
-    console.error("Error in /users/:username/posts handler:", (error as Error).message);
+    console.error("Error in /users/:username/posts handler:", error);
     return c.text("Internal Server Error", 500);
   }
 });
@@ -216,7 +234,7 @@ app.get("/users/:username/followers", async (c) => {
 // Route: Get all posts on the server sorted by latest
 app.get("/api/posts", async (c) => {
   try {
-    if (!(c as any).user) return c.text("Unauthorised", 401);
+    if (!(c as any).user) return c.text("Unauthorized", 401);
     const userId = (c as any).user.id;
 
     // Get actor_id for this user
@@ -225,30 +243,28 @@ app.get("/api/posts", async (c) => {
       [userId]
     );
     const actor = actorResult.rows[0];
+
     const result = await pool.query(
       `
       SELECT 
         posts.*,
         users.username,
         actors.name,
-        COUNT(likes.post_id) AS like_count,
-        MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END) AS liked,
-        COUNT(DISTINCT reposts.post_id) AS repost_count,
-        MAX(CASE WHEN reposts.actor_id = $1 THEN 1 ELSE 0 END) AS reposted
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) AS like_count,
+        (SELECT COUNT(*) FROM reposts WHERE post_id = posts.id) AS repost_count,
+        (SELECT EXISTS (SELECT 1 FROM likes WHERE post_id = posts.id AND actor_id = $1)) AS liked,
+        (SELECT EXISTS (SELECT 1 FROM reposts WHERE post_id = posts.id AND actor_id = $1)) AS reposted
       FROM posts
       JOIN actors ON posts.actor_id = actors.id
       JOIN users ON users.id = actors.user_id
-      LEFT JOIN likes ON posts.id = likes.post_id
-      LEFT JOIN reposts ON posts.id = reposts.post_id
-      GROUP BY posts.id, users.username, actors.name
       ORDER BY posts.created DESC
       `,
       [actor.id]
     );
-    const posts = result.rows;
-    return c.json(posts);
+
+    return c.json(result.rows);
   } catch (error) {
-    console.error("Error in /posts handler:", (error as Error).message);
+    console.error("Error in /posts handler:", error);
     return c.text("Internal Server Error", 500);
   }
 });
@@ -258,34 +274,29 @@ app.get("/api/posts/:postId", async (c) => {
   if (!(c as any).user) return c.text("Unauthorised", 401);
   const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
-
   // Get actor_id for this user
   const actorResult = await pool.query(
     `SELECT id FROM actors WHERE user_id = $1`,
     [userId]
   );
   const actor = actorResult.rows[0];
-
   const result = await pool.query(
     `
-    SELECT
-      posts.*,
-      users.username,
-      actors.name,
-      COUNT(DISTINCT likes.post_id)::int AS like_count,
-      MAX(CASE WHEN likes.actor_id = $1 THEN 1 ELSE 0 END)::int AS liked,
-      COUNT(DISTINCT reposts.post_id)::int AS repost_count,
-      MAX(CASE WHEN reposts.actor_id = $1 THEN 1 ELSE 0 END)::int AS reposted
-    FROM posts
-    JOIN actors ON posts.actor_id = actors.id
-    JOIN users ON users.id = actors.user_id
-    LEFT JOIN likes ON posts.id = likes.post_id
-    LEFT JOIN reposts ON posts.id = reposts.post_id
+    SELECT 
+        posts.*,
+        users.username,
+        actors.name,
+        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) AS like_count,
+        (SELECT COUNT(*) FROM reposts WHERE post_id = posts.id) AS repost_count,
+        (SELECT EXISTS (SELECT 1 FROM likes WHERE post_id = posts.id AND actor_id = $1)) AS liked,
+        (SELECT EXISTS (SELECT 1 FROM reposts WHERE post_id = posts.id AND actor_id = $1)) AS reposted
+      FROM posts
+      JOIN actors ON posts.actor_id = actors.id
+      JOIN users ON users.id = actors.user_id
     WHERE posts.id = $2
-    GROUP BY posts.id, users.username, actors.name
     `,
     [actor.id, postId]
-  );
+  );  
   const post = result.rows[0];
   
   if (!post) return c.text("Not found", 404);
@@ -295,77 +306,100 @@ app.get("/api/posts/:postId", async (c) => {
 // Like a post
 app.post("/api/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
+  const postId = Number(c.req.param("postId")); // Convert to number
   const userId = (c as any).user.id;
 
-  const [actor, post] = await Promise.all([
+  const [actorResult, postResult, keyResult] = await Promise.all([
     pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
-    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+    pool.query("SELECT * FROM posts WHERE id = $1", [postId]),
+    pool.query("SELECT private_key FROM keys WHERE user_id = $1 AND type = 'RSASSA-PKCS1-v1_5'", [userId])
   ]);
   
+  const actor = actorResult.rows[0];
+  const post = postResult.rows[0];
+  const privateKey = keyResult.rows[0]?.private_key;
+  if (!actor || !post || !privateKey) return c.text("Not found", 404);
+
   const like = new Like({
-    id: new URL(`${post.rows[0].uri}#like`),
-    actor: new URL(actor.rows[0].uri),
-    object: new URL(post.rows[0].uri),
-    to: PUBLIC_COLLECTION
+    id: new URL(`${post.uri}#like-${Date.now()}`),
+    actor: new URL(actor.uri),
+    object: new URL(post.uri),
+    to: PUBLIC_COLLECTION,
+    published: Temporal.Instant.from(new Date().toISOString())
   });
 
-  // Send to original post's inbox
-  const parsed = new URL(post.rows[0].uri);
+  const parsed = new URL(post.uri);
   const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
   
   await fetch(inbox, {
     method: "POST",
     headers: {
       "Content-Type": "application/activity+json",
-      "Signature": await createSignature(like, actor.rows[0]),
+      "Signature": await createSignature(like, { private_key: privateKey }),
     },
     body: JSON.stringify(like),
   });
-  // Store locally
+
   await pool.query(
     `INSERT INTO likes (post_id, actor_id, activity_uri)
-    VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-    [postId, actor.rows[0].id, like.id?.href]
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [postId, actor.id, like.id?.href] // Use numeric postId
   );
-
+  
   return c.json({ success: true });
 });
-// Unlike a post
+
+// DELETE /api/posts/:postId/like
 app.delete("/api/posts/:postId/like", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = c.req.param("postId");
+  const postId = Number(c.req.param("postId"));
   const userId = (c as any).user.id;
 
-  const [actor, post] = await Promise.all([
-    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
-    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+  // Get actor's integer ID first
+  const actorResult = await pool.query(
+    "SELECT * FROM actors WHERE user_id = $1",
+    [userId]
+  );
+  const actorId = actorResult.rows[0]?.id;
+  if (!actorId) return c.text("Actor not found", 404);
+
+  const [likeResult, keyResult] = await Promise.all([
+    pool.query(
+      `SELECT activity_uri FROM likes 
+       WHERE post_id = $1 AND actor_id = $2`,
+      [postId, actorId] // Use actor's integer ID
+    ),
+    pool.query("SELECT private_key FROM keys WHERE user_id = $1 AND type = 'RSASSA-PKCS1-v1_5'", [userId])
   ]);
   
+  const actor = actorResult.rows[0];
+  const like = likeResult.rows[0];
+  const privateKey = keyResult.rows[0]?.private_key;
+  if (!actor || !like || !privateKey) return c.text("Not found", 404);
+
   const undo = new Undo({
-    id: new URL(`${post.rows[0].uri}#undo-like`),
-    actor: new URL(actor.rows[0].uri),
-    object: new URL(`${post.rows[0].uri}#like`),
-    to: PUBLIC_COLLECTION
+    id: new URL(`${like.activity_uri}#undo`),
+    actor: new URL(actor.uri),
+    object: new URL(like.activity_uri),
+    to: PUBLIC_COLLECTION,
+    published: Temporal.Instant.from(new Date().toISOString())
   });
 
-  // Send to original post's inbox
-  const parsed = new URL(post.rows[0].uri);
+  const parsed = new URL(like.activity_uri);
   const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
   
   await fetch(inbox, {
     method: "POST",
     headers: {
       "Content-Type": "application/activity+json",
-      "Signature": await createSignature(undo, actor.rows[0]),
+      "Signature": await createSignature(undo, { private_key: privateKey }),
     },
     body: JSON.stringify(undo),
   });
 
-  // Delete locally
   await pool.query(
     `DELETE FROM likes WHERE post_id = $1 AND actor_id = $2`,
-    [postId, actor.rows[0].id]
+    [postId, actor.id]
   );
   
   return c.json({ success: true });
@@ -377,12 +411,13 @@ app.post("/api/posts/:postId/repost", async (c) => {
   const postId = c.req.param("postId");
   const userId = (c as any).user.id;
 
-  const [actorResult, postResult] = await Promise.all([
+  const [actorResult, postResult, keyResult] = await Promise.all([
     pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
-    pool.query("SELECT * FROM posts WHERE id = $1", [postId])
+    pool.query("SELECT * FROM posts WHERE id = $1", [postId]),
+    pool.query("SELECT private_key FROM keys WHERE user_id = $1 AND type = 'RSASSA-PKCS1-v1_5'", [userId])
   ]);
   
-  const actor = actorResult.rows[0];
+  const actor = { ...actorResult.rows[0], private_key: keyResult.rows[0]?.private_key };
   const post = postResult.rows[0];
   if (!actor || !post) return c.text("Not found", 404);
 
@@ -410,7 +445,7 @@ app.post("/api/posts/:postId/repost", async (c) => {
 
   // Store locally
   await pool.query(
-    `INSERT INTO announces (post_id, actor_id, activity_uri)
+    `INSERT INTO reposts (post_id, actor_id, activity_uri)
      VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
     [postId, actor.id, repost.id?.href]
   );
@@ -424,46 +459,54 @@ app.delete("/api/posts/:postId/repost", async (c) => {
   const postId = c.req.param("postId");
   const userId = (c as any).user.id;
 
-  const [actorResult, postResult] = await Promise.all([
-    pool.query("SELECT * FROM actors WHERE user_id = $1", [userId]),
-    pool.query(`
-      SELECT announces.activity_uri, posts.uri 
-      FROM announces 
-      JOIN posts ON announces.post_id = posts.id 
-      WHERE announces.post_id = $1 AND announces.actor_id = $2
-    `, [postId, (c as any).user.id])
-  ]);
-  
-  const actor = actorResult.rows[0];
-  const repostRecord = postResult.rows[0];
-  if (!actor || !repostRecord) return c.text("Not found", 404);
+  // Get actor's integer ID first
+  const actorResult = await pool.query(
+    "SELECT * FROM actors WHERE user_id = $1",
+    [userId]
+  );
+  const actorId = actorResult.rows[0]?.id;
+  if (!actorId) return c.text("Actor not found", 404);
 
-  // Create Undo activity
+  const [repostResults, keyResult] = await Promise.all([
+    pool.query(
+      `SELECT activity_uri FROM reposts 
+       WHERE post_id = $1 AND actor_id = $2`,
+      [postId, actorId] // Use integer ID here
+    ),
+    pool.query(
+      "SELECT private_key FROM keys WHERE user_id = $1 AND type = 'RSASSA-PKCS1-v1_5'",
+      [userId]
+    )
+  ]);
+
+  const repost = repostResults.rows[0];
+  const privateKey = keyResult.rows[0]?.private_key;
+  if (!repost || !privateKey) return c.text("Not found", 404);
+
+  const actorUri = `${process.env.FEDERATION_HOST}/users/${(c as any).user.username}`;
   const undo = new Undo({
-    id: new URL(`${repostRecord.uri}#undo-boost-${Date.now()}`),
-    actor: new URL(actor.uri),
-    object: new URL(repostRecord.activity_uri),
+    id: new URL(`${repost.activity_uri}#undo`),
+    actor: new URL(actorResult.rows[0].uri),
+    object: new URL(repost.activity_uri),
     to: PUBLIC_COLLECTION,
     published: Temporal.Instant.from(new Date().toISOString())
   });
 
-  // Send to original post's inbox
-  const parsed = new URL(repostRecord.uri);
+  const parsed = new URL(repost.activity_uri);
   const inbox = `${parsed.protocol}//${parsed.hostname}/inbox`;
   
   await fetch(inbox, {
     method: "POST",
     headers: {
       "Content-Type": "application/activity+json",
-      "Signature": await createSignature(undo, actor),
+      "Signature": await createSignature(undo, { private_key: privateKey }),
     },
     body: JSON.stringify(undo),
   });
 
-  // Delete locally
   await pool.query(
-    `DELETE FROM announces WHERE post_id = $1 AND actor_id = $2`,
-    [postId, actor.id]
+    `DELETE FROM reposts WHERE post_id = $1 AND actor_id = $2`,
+    [postId, actorId] // Use integer ID here
   );
   
   return c.json({ success: true });

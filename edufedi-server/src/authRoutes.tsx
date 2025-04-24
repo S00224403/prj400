@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { get } from "http";
+import { cors } from "hono/cors";
 
 const authRoutes = new Hono();
 const allowedOrigins = [
@@ -16,13 +17,13 @@ const allowedOrigins = [
 const FEDERATION_PROTOCOL = "https"
 const FEDERATION_HOST = "edufedi.com";
 authRoutes.use("*", async (c, next) => {
-  const origin = c.req.header("origin");
-  if (origin && allowedOrigins.includes(origin)) {
-    c.res.headers.set("Access-Control-Allow-Origin", origin);
-    c.res.headers.set("Access-Control-Allow-Credentials", "true");
-    c.res.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
-    c.res.headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization");
-  }
+  cors({
+      origin: allowedOrigins,
+      credentials: true,
+      allowMethods: ["GET", "POST", "PUT", "DELETE"],
+      allowHeaders: ["Content-Type", "Authorization"],
+      exposeHeaders: ["Set-Cookie"] // Add this
+    })
   if (c.req.method === "OPTIONS") {
     return c.text("", 200);
   }
@@ -133,11 +134,12 @@ authRoutes.post("/login", async (c) => {
     setCookie(c, "session_token", token, {
       httpOnly: true,
       secure: !isLocalHost,
-      // sameSite: isLocalHost ? "Lax" : "None",
-      sameSite: "lax",
+      sameSite: isLocalHost ? "Lax" : "None", // 'None' for cross-site
       maxAge: 3600,
-      path: "/", // Make sure path is "/"
+      path: "/",
+      domain: isLocalHost ? undefined : ".edufedi.com" // Allow subdomains
     });
+
     
     return c.json({ message: "Login successful" });
   } catch (error) {

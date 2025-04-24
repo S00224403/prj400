@@ -16,9 +16,6 @@ const Sidebar: React.FC<{ user?: any }> = ({ user }) => (
         </Stack>
       </Box>
     </Box>
-    <Box sx={{ flexShrink: 0 }}>
-      <Footer />
-    </Box>
   </Box>
 );
 

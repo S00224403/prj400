@@ -116,11 +116,11 @@ const UserPage: React.FC = () => {
         const fetchProfileData = async () => {
         try {
             // Fetch user profile data
-            const profileResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users/${username}`);
+            const profileResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users/${username}`, {withCredentials: true});
             setProfile(profileResponse.data);
 
             // Fetch user's posts
-            const postsResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users/${username}/posts`);
+            const postsResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users/${username}/posts`, {withCredentials: true});
             setPosts(postsResponse.data);
             
             setLoading(false);
@@ -170,7 +170,10 @@ const UserPage: React.FC = () => {
                 alignItems: "center",
               }}
             >
-              <NavigationBar/>
+                <NavigationBar/>
+                <Box sx={{ flexShrink: 0 }}>
+                    <Footer />
+                </Box>  
             </Grid>
     
             {/* Main Post Content */}
@@ -201,42 +204,76 @@ const UserPage: React.FC = () => {
                     <Box
                         sx={{
                             display: 'flex',
-                            alignItems: 'center',
-                            mb: 4,
-                            p: 3,
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'center', sm: 'flex-start' },
+                            justifyContent: { xs: 'center', sm: 'space-between' },
+                            p: { xs: 2, sm: 3 },
+                            mb: { xs: 3, sm: 4 },
                             borderRadius: 3,
                             boxShadow: 2,
                             background: '#fff',
-                            flexWrap: 'wrap',
-                            justifyContent: 'space-between',
-                            gap: 2,
-                            minHeight: 120,
+                            gap: { xs: 2, sm: 3 },
+                            maxWidth: '100%',
                         }}
                         >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {/* Avatar and Info Container */}
+                        <Box 
+                            sx={{
+                            display: 'flex', 
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'center', sm: 'flex-start' },
+                            gap: { xs: 2, sm: 3 },
+                            width: '100%'
+                            }}
+                        >
+                            {/* Avatar - Responsive sizing */}
                             <Avatar
                             src={profile?.profile_picture || undefined}
                             alt={profile?.name}
                             sx={{
-                                width: 90,
-                                height: 90,
-                                fontSize: 40,
-                                bgcolor: (theme) => theme.palette.primary.light,
+                                width: { xs: 80, sm: 90 },
+                                height: { xs: 80, sm: 90 },
+                                fontSize: { xs: 32, sm: 40 },
+                                bgcolor: theme => theme.palette.primary.light,
                             }}
                             >
                             {!profile?.profile_picture && profile?.username[0].toUpperCase()}
                             </Avatar>
-                            <Box>
-                            <Typography variant="h4" fontWeight={700}>
+
+                            {/* Profile Text Content */}
+                            <Box sx={{ 
+                            textAlign: { xs: 'center', sm: 'left' },
+                            width: '100%' 
+                            }}>
+                            <Typography 
+                                variant="h4" 
+                                fontWeight={700}
+                                sx={{ 
+                                fontSize: { xs: '1.5rem', sm: '2rem' } 
+                                }}
+                            >
                                 {profile?.name}
                             </Typography>
                             <Typography variant="subtitle1" color="text.secondary">
                                 @{profile?.username}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            <Typography 
+                                variant="body2" 
+                                color="text.secondary" 
+                                sx={{ mt: 0.5 }}
+                            >
                                 Joined {profile?.created ? new Date(profile.created).toLocaleDateString() : ''}
                             </Typography>
-                            <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+                            
+                            {/* Stats - Responsive spacing and layout */}
+                            <Stack 
+                                direction="row" 
+                                spacing={{ xs: 2, sm: 3 }}
+                                sx={{ 
+                                mt: 1,
+                                justifyContent: { xs: 'center', sm: 'flex-start' } 
+                                }}
+                            >
                                 <Typography variant="body2">
                                 <b>{profile?.post_count ?? 0}</b> Posts
                                 </Typography>
@@ -249,14 +286,27 @@ const UserPage: React.FC = () => {
                             </Stack>
                             </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
+
+                        {/* Action Buttons */}
+                        <Box 
+                            sx={{ 
+                            display: 'flex', 
+                            gap: 2,
+                            width: { xs: '100%', sm: 'auto' },
+                            justifyContent: { xs: 'center', sm: 'flex-end' },
+                            mt: { xs: 2, sm: 0 }
+                            }}
+                        >
                             {currentUser && currentUser.username !== username && (
                             <Button
                                 variant={isFollowing ? "outlined" : "contained"}
                                 color="primary"
                                 onClick={handleFollow}
                                 disabled={isProcessing}
-                                sx={{ minWidth: 110 }}
+                                sx={{ 
+                                minWidth: { xs: '45%', sm: 110 },
+                                py: { xs: 1, sm: 'auto' }
+                                }}
                             >
                                 {isFollowing ? 'Unfollow' : 'Follow'}
                             </Button>
@@ -264,15 +314,20 @@ const UserPage: React.FC = () => {
                             <IconButton
                             onClick={handleShare}
                             aria-label="share profile"
-                            sx={{ border: '1px solid', borderColor: 'divider' }}
+                            sx={{ 
+                                border: '1px solid', 
+                                borderColor: 'divider',
+                                width: { xs: 42, sm: 'auto' },
+                                height: { xs: 42, sm: 'auto' }
+                            }}
                             >
                             <ContentCopyIcon />
                             </IconButton>
                         </Box>
-                        </Box>
+                    </Box>
 
                     {/* User's Posts */}
-                    <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                    <Box sx={{ flexGrow: 1 }}>
                         {posts.length === 0 ? (
                         <Typography variant="body1" sx={{ textAlign: 'center' }}>
                             No posts yet.

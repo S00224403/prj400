@@ -60,11 +60,12 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE TABLE IF NOT EXISTS likes (
+  id SERIAL PRIMARY KEY,
   post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
   actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
+  activity_uri TEXT UNIQUE, -- For federation
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  activity_uri text UNIQUE
-  PRIMARY KEY (post_id, actor_id)
+  UNIQUE (post_id, actor_id)
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -75,9 +76,10 @@ CREATE TABLE IF NOT EXISTS comments (
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS reposts (
+  id SERIAL PRIMARY KEY,
   post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
   actor_id INTEGER REFERENCES actors(id) ON DELETE CASCADE,
+  activity_uri TEXT UNIQUE, -- For federation
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  activity_uri text UNIQUE,
-  PRIMARY KEY (post_id, actor_id)
+  UNIQUE (post_id, actor_id)
 );

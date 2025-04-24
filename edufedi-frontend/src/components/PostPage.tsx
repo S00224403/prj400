@@ -14,6 +14,7 @@ import PostCard from "./PostCard";
 import AddPost from "./AddPost";
 import Header from "./Header";
 import { useAuth } from "./AuthContext"; // If using AuthContext
+import axios from "axios";
 
 const PostPage: React.FC = () => {
   const { postId } = useParams();
@@ -24,14 +25,16 @@ const PostPage: React.FC = () => {
 
   useEffect(() => {
     // Fetch the post
-    fetch(`${process.env.REACT_APP_API_BASE_URL}/posts/${postId}`, { credentials: "include" })
-      .then(res => res.json())
-      .then(setPost);
+    axios
+      .get(`${process.env.REACT_APP_API_BASE_URL}/posts/${postId}`, { withCredentials: true })
+      .then((res) => setPost(res.data))
+      .catch((err) => console.error("Error fetching post:", err));
 
     // Fetch comments
-    fetch(`${process.env.REACT_APP_API_BASE_URL}/posts/${postId}/comments`, { credentials: "include" })
-      .then(res => res.json())
-      .then(setComments);
+    axios
+      .get(`${process.env.REACT_APP_API_BASE_URL}/posts/${postId}/comments`, { withCredentials: true })
+      .then((res) => setComments(res.data))
+      .catch((err) => console.error("Error fetching comments:", err));
   }, [postId]);
 
   if (!post) return <Typography>Loading...</Typography>;
@@ -74,43 +77,55 @@ const PostPage: React.FC = () => {
           }}
         >
           <NavigationBar/>
+          <Box sx={{ flexShrink: 0 }}>
+            <Footer />
+          </Box>
         </Grid>
 
         {/* Main Post Content */}
         <Grid
           container
-          size={{ xs: 12, md: 6 }}
           sx={{
-            height: "100%",
+            flex: 1,
             minHeight: 0,
-            overflowY: "auto",
-            paddingX: "20px",
-            paddingY: "20px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "stretch",
+            height: '100%', // or '100vh' if this is the root
+            overflow: 'auto', // Prevent horizontal scroll
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            paddingX: 2,
+            paddingY: 2,
           }}
         >
-          <PostCard {...post} />
-          <Box mt={4}>
-            <Typography variant="h6">Replies</Typography>
-            <Stack spacing={2} mt={2}>
-              {comments.length === 0 ? (
-                <Typography>No replies yet.</Typography>
-              ) : (
-                comments.map((comment) => (
-                  <Box key={comment.id} sx={{ border: "1px solid #eee", borderRadius: 2, p: 2 }}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      {comment.name} @{comment.username} • {new Date(comment.created).toLocaleString()}
-                    </Typography>
-                    <Typography variant="body1">{comment.content}</Typography>
-                  </Box>
-                ))
-              )}
-            </Stack>
+          {/* Scrollable content area */}
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <PostCard {...post} />
+            <Box mt={4}>
+              <Typography variant="h6">Replies</Typography>
+              <Stack spacing={2} mt={2}>
+                {comments.length === 0 ? (
+                  <Typography>No replies yet.</Typography>
+                ) : (
+                  comments.map((comment) => (
+                    <Box key={comment.id} sx={{ border: "1px solid #eee", borderRadius: 2, p: 2 }}>
+                      <Typography variant="subtitle2" color="textSecondary">
+                        {comment.name} @{comment.username} • {new Date(comment.created).toLocaleString()}
+                      </Typography>
+                      <Typography variant="body1">{comment.content}</Typography>
+                    </Box>
+                  ))
+                )}
+              </Stack>
+            </Box>
+            {/* Add reply form here if desired */}
           </Box>
-          {/* Add reply form here if desired */}
         </Grid>
+
 
         {/* Third Column */}
         {!isMobile && (
@@ -135,9 +150,6 @@ const PostPage: React.FC = () => {
                 <Typography variant="h6">Trending Topics</Typography>
                 {/* ... */}
               </Box>
-            </Box>
-            <Box sx={{ flexShrink: 0 }}>
-              <Footer />
             </Box>
           </Grid>
         )}
