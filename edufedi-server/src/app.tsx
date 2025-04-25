@@ -247,7 +247,7 @@ app.post("/api/users/:username/posts", async (c) => {
     // Handle attachment if present
     if (file instanceof File) {
       const extension = file.name.split('.').pop();
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+      const filename = `user_${actor.user_id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
       
       // Convert to Buffer
       const arrayBuffer = await file.arrayBuffer();

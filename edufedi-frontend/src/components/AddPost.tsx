@@ -49,7 +49,7 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
       formData,
       { withCredentials: true }
     )
-    .then(() => { setPostContent(""); setFile(null); })
+    .then(() => { setPostContent(""); setFile(null); setFilename(""); }) // Reset state after successful post
     .catch(console.error);
   };
 

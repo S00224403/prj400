@@ -15,6 +15,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import MenuIcon from "@mui/icons-material/Menu";
 import NavigationBar from "./NavigationBar";
 import SearchBar from "./SearchBar";
+import { useAuth } from "./AuthContext";
 
 interface HeaderProps {
   isLoggedIn: boolean;
@@ -25,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate(); // <-- useNavigate inside the component
-
+  const { user } = useAuth();
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -73,7 +74,12 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
             </IconButton>
             
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-              <MenuItem onClick={handleMenuClose}>My Profile</MenuItem>
+              <MenuItem onClick={() => {
+                  handleMenuClose();
+                  navigate(`/users/${user?.username}`);
+                }}>
+                  My Profile
+              </MenuItem>
               <MenuItem
                 onClick={() => {
                   handleMenuClose();

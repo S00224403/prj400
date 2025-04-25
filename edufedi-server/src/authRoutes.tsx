@@ -33,6 +33,8 @@ authRoutes.use("*", async (c, next) => {
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 const JWT_SECRET = process.env.JWT_SECRET!; // Ensure you have a JWT secret in your environment variables
 // Sign-Up Endpoint
 authRoutes.post("/signup", async (c) => {
@@ -175,6 +177,74 @@ authRoutes.get("/me", async (c) => {
     return c.json({ user });
   } catch {
     return c.text("Unauthorized", 401);
+  }
+});
+// Delete Account Endpoint
+authRoutes.delete("/delete-account", async (c) => {
+  const token = getCookie(c, "session_token");
+  if (!token) return c.text("Unauthorized", 401);
+
+  try {
+    // Decode JWT to get user ID
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+    const userId = decoded.id;
+
+    // Delete all files in user's storage path
+    let allFiles = [];
+    let hasMore = true;
+    let page = 0;
+    
+    while (hasMore) {
+      console.log(`Fetching files for user ${userId}, page ${page}`);
+      const { data: fileList, error: listError } = await supabaseAdmin.storage
+        .from('research-papers-edufedi')
+        .list(`user_${userId}`, {
+          limit: 100,
+          offset: page * 100
+        });
+
+      if (listError) {
+        console.error("List files error:", listError);
+        break;
+      }
+
+      if (fileList?.length > 0) {
+        allFiles.push(...fileList);
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    if (allFiles.length > 0) {
+      // Add user directory path to each filename
+      const filesToDelete = allFiles.map(file => `user_${userId}/${file.name}`);
+      
+      const { error: deleteError } = await supabaseAdmin.storage
+        .from('research-papers-edufedi')
+        .remove(filesToDelete);
+    
+      if (deleteError) {
+        console.error("File deletion failed:", deleteError);
+        return c.text("Failed to delete files", 500);
+      }
+    }
+    // Delete user from Supabase Auth
+    const { error: supabaseError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (supabaseError) {
+      console.error("Supabase Auth deletion failed:", supabaseError.message);
+      return c.text("Failed to delete auth user", 500);
+    }
+    // Delete user from your users table
+    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    // Remove session cookie
+    deleteCookie(c, "session_token");
+
+    return c.json({ success: true, message: "Account deleted" });
+  } catch (error) {
+    console.error("Error deleting account:", (error as Error).message);
+    return c.text("Failed to delete account", 500);
   }
 });
 

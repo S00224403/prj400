@@ -8,7 +8,7 @@ import { useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import Header from './Header';        
 import { useAuth } from './AuthContext';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Post, User } from '../interface';
 import axios from 'axios';
@@ -29,7 +29,18 @@ const UserPage: React.FC = () => {
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-
+    const navigate = useNavigate();
+    const handleDeleteAccount = async () => {
+      if (!window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
+      try {
+        await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/auth/delete-account`, { withCredentials: true });
+        // Optionally, clear user context and redirect to home/login
+        logout(); // If you have a logout function in context
+        navigate("/login");
+      } catch (err) {
+        alert("Failed to delete account.");
+      }
+    };
     useEffect(() => {
         const checkFollowStatus = async () => {
           if (!currentUser || currentUser.username === username) return;
@@ -297,6 +308,16 @@ const UserPage: React.FC = () => {
                             mt: { xs: 2, sm: 0 }
                             }}
                         >
+                            {currentUser && currentUser.username === profile?.username && (
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={handleDeleteAccount}
+                                    sx={{ mt: 2 }}
+                                >
+                                    Delete Account
+                                </Button>
+                            )}
                             {currentUser && currentUser.username !== username && (
                             <Button
                                 variant={isFollowing ? "outlined" : "contained"}
