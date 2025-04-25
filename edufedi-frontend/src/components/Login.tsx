@@ -45,7 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         { withCredentials: true }
       );
       if (onLoginSuccess) onLoginSuccess();
-      navigate("/"); // Redirect to homepage
+      navigate("/", { replace: true }); // Redirect to homepage with refresh
     } catch (err: any) {
       if (axios.isAxiosError(err)) {
         setError(
