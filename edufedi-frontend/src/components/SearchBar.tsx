@@ -118,7 +118,28 @@ export default function SearchBar() {
                     />
                 </ListItem>
             ))}
-
+            {results.federated?.map(federatedUser => (
+                <ListItem 
+                    key={federatedUser.uri}
+                    component="a"
+                    href={`${federatedUser.uri}`}
+                    sx={{ textDecoration: "none", color: "inherit" }}
+                    onMouseDown={(e) => e.preventDefault()} // Prevent blur from TextField
+                    onClick={() => {
+                    setIsOpen(false);
+                    setQuery("");
+                    }}
+                >
+                    <ListItemAvatar>
+                    <Avatar>{(federatedUser.username[0]).toUpperCase()}</Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                    primary={federatedUser.username}
+                    secondary={`Federated user on ${federatedUser.domain}`}
+                    />
+                </ListItem>
+            ))}
+            {/* No Results Message */}
             {results.users.length === 0 && results.posts.length === 0 && (
               <ListItem>
                 <ListItemText primary="No results found" />

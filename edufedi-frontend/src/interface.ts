@@ -62,6 +62,7 @@ export interface User {
       created: string;
       username: string;
     }>;
+    federated?: Array<{ uri: string; username: string; name?: string; domain: string }>;
   }
   export interface  Report {
     report_id: number;

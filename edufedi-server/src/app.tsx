@@ -746,7 +746,7 @@ app.get("/api/users/:username/follow-status", async (c) => {
 // Search for users and posts
 app.get("/api/search", async (c) => {
   const query = c.req.query("q")?.trim();
-  if (!query) return c.json({ users: [], posts: [] });
+  if (!query) return c.json({ users: [], posts: [], federated: [] });
 
   try {
     // Search users
@@ -778,16 +778,59 @@ app.get("/api/search", async (c) => {
       ORDER BY posts.created DESC
       LIMIT 10
     `, [`%${query}%`]);
-
+    // Federated user search
+    let federatedUsers: { uri: any; username: string; name: string; domain: string; }[] = [];
+    if (query.includes('@')) {
+      try {
+        const [username, domain] = query.split('@');
+        const response = await fetch(
+          `https://${domain}/.well-known/webfinger?resource=acct:${username}@${domain}`
+        );
+        const data = await response.json();
+        federatedUsers = [{
+          uri: data.links.find((l: { rel: string; }) => l.rel === 'self').href,
+          username: query,
+          name: username,
+          domain
+        }];
+      } catch (error) {
+        console.error("Federated search failed:", error);
+      }
+    }
     return c.json({
       users: users.rows,
-      posts: posts.rows
+      posts: posts.rows,
+      federated: federatedUsers
     });
   } catch (error) {
     console.error("Search error:", error);
     return c.text("Search failed", 500);
   }
 });
+
+// Add endpoint to fetch remote profiles
+app.get("/api/external-profile", async (c) => {
+  const uri = c.req.query('uri');
+  if (!uri) return c.text('URI required', 400);
+
+  try {
+    const response = await fetch(uri, {
+      headers: { Accept: 'application/activity+json' }
+    });
+    const actor = await response.json();
+    return c.json({
+      username: actor.preferredUsername,
+      name: actor.name,
+      bio: actor.summary,
+      avatar: actor.icon?.url,
+      uri
+    });
+  } catch (error) {
+    console.error("Failed to fetch remote profile:", error);
+    return c.text('Profile not found', 404);
+  }
+});
+
 // Report a post
 app.post("/api/posts/:postId/report", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
@@ -840,6 +883,40 @@ app.get("/api/moderation/reports", async (c) => {
   `);
 
   return c.json(result.rows);
+});
+
+// Add to app.tsx
+app.get('/.well-known/webfinger', async (c) => {
+  const resource = c.req.query('resource');
+  if (!resource?.startsWith('acct:')) return c.text('Invalid request', 400);
+
+  const [username, domain] = resource.slice(5).split('@');
+  if (domain !== FEDERATION_HOST) {
+    // Federated lookup
+    const response = await fetch(
+      `https://${domain}/.well-known/webfinger?resource=acct:${username}@${domain}`
+    );
+    return c.json(await response.json());
+  }
+
+  // Local user lookup
+  const result = await pool.query(
+    `SELECT actors.* FROM actors
+     JOIN users ON users.id = actors.user_id
+     WHERE users.username = $1`,
+    [username]
+  );
+  const actor = result.rows[0];
+  if (!actor) return c.text('Not found', 404);
+
+  return c.json({
+    subject: `acct:${username}@${FEDERATION_HOST}`,
+    links: [{
+      rel: 'self',
+      type: 'application/activity+json',
+      href: actor.uri
+    }]
+  });
 });
 
 export default app;
