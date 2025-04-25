@@ -44,7 +44,6 @@ authRoutes.post("/signup", async (c) => {
   }
 
   try {
-    console.log("Received signup request:", { username, email, password, display_name });
 
     // Step 1: Sign up with Supabase Auth and include metadata
     const { data: authUser, error: authError } = await supabase.auth.signUp({
@@ -106,7 +105,6 @@ authRoutes.post("/login", async (c) => {
   const origin = c.req.header("origin");
   const isLocalHost = origin && origin.includes("http://localhost");
   const { email, password } = body;
-  console.log("Received login request:", { email, password });
   if (!email || !password) {
     return c.text("Email and password are required", 400);
   }
