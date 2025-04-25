@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import PostPage from "./components/PostPage";
 import { AuthProvider } from "./components/AuthContext";
 import UserPage from "./components/UserPage";
+import ModDashboard from "./components/ModDashboard";
 
 const App: React.FC = () => (
   <>
@@ -16,6 +17,8 @@ const App: React.FC = () => (
         <Route path="/login" element={<Login />} />
         <Route path="/users/:username/posts/:postId" element={<PostPage />} />
         <Route path="/users/:username" element={<UserPage />} />
+        <Route path="/moderation" element={<ModDashboard />} />
+
       </Routes>
     </AuthProvider>
     

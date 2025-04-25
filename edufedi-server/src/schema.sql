@@ -83,3 +83,16 @@ CREATE TABLE IF NOT EXISTS reposts (
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (post_id, actor_id)
 );
+-- Create reported_posts table
+CREATE TABLE IF NOT EXISTS reported_posts (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  reporter_id INTEGER NOT NULL REFERENCES actors(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved BOOLEAN NOT NULL DEFAULT false
+);
+
+-- Index for faster lookups
+CREATE INDEX idx_reported_posts_post ON reported_posts(post_id);
+CREATE INDEX idx_reported_posts_resolved ON reported_posts(resolved);

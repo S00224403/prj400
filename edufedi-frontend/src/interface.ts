@@ -63,3 +63,14 @@ export interface User {
       username: string;
     }>;
   }
+  export interface  Report {
+    report_id: number;
+    reason: string;
+    report_date: string;
+    post_id: number;
+    post_content: string;
+    author_name: string;
+    author_username: string;
+    reporter_name: string;
+    reporter_username: string;
+  }

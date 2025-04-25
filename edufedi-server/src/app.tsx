@@ -792,5 +792,58 @@ app.get("/api/search", async (c) => {
     return c.text("Search failed", 500);
   }
 });
+// Report a post
+app.post("/api/posts/:postId/report", async (c) => {
+  if (!(c as any).user) return c.text("Unauthorized", 401);
+  const postId = c.req.param("postId");
+  const { reason } = await c.req.json();
+
+  // Get reporter's actor ID
+  const actorResult = await pool.query(
+    "SELECT id FROM actors WHERE user_id = $1",
+    [(c as any).user.id]
+  );
+  const reporterId = actorResult.rows[0]?.id;
+  if (!reporterId) return c.text("Reporter not found", 404);
+
+  try {
+    await pool.query(
+      `INSERT INTO reported_posts (post_id, reporter_id, reason)
+       VALUES ($1, $2, $3)`,
+      [postId, reporterId, reason]
+    );
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Report submission failed:", error);
+    return c.text("Failed to submit report", 500);
+  }
+});
+// Get reported posts (moderator only)
+app.get("/api/moderation/reports", async (c) => {
+  //if (!(c as any).user?.isModerator) return c.text("Forbidden", 403); // Should check if user is a moderator but for demo they have to be authenticated only
+  
+  const result = await pool.query(`
+    SELECT 
+      rp.id as report_id,
+      rp.reason,
+      rp.created as report_date,
+      p.id as post_id,
+      p.content as post_content,
+      a.name as author_name,
+      u.username as author_username,
+      ra.name as reporter_name,
+      ru.username as reporter_username
+    FROM reported_posts rp
+    JOIN posts p ON rp.post_id = p.id
+    JOIN actors a ON p.actor_id = a.id
+    JOIN users u ON a.user_id = u.id
+    JOIN actors ra ON rp.reporter_id = ra.id
+    JOIN users ru ON ra.user_id = ru.id
+    WHERE rp.resolved = false
+    ORDER BY rp.created DESC
+  `);
+
+  return c.json(result.rows);
+});
 
 export default app;

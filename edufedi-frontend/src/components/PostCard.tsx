@@ -7,6 +7,7 @@ import {
     Box,
     Avatar,
     Button,
+    IconButton,
 } from "@mui/material";
 import DescriptionIcon from "@mui/icons-material/Description";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
@@ -17,6 +18,8 @@ import ReplyIcon from "@mui/icons-material/Reply";
 import ShareIcon from "@mui/icons-material/Share";
 import { Post } from "../interface";
 import axios from "axios";
+import FlagIcon from "@mui/icons-material/Report";
+import { useSnackbar } from "notistack";
 
 const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked, repost_count, reposted, attachments }) => {
     const [likedState, setLikedState] = useState(liked);
@@ -24,6 +27,24 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
     const [repostState, setRepostedState] = useState(reposted );
     const [repostCount, setRepostCount] = useState(Number(repost_count));
 
+    const { enqueueSnackbar } = useSnackbar();
+
+    const handleReport = async () => {
+    const reason = prompt("Please enter the reason for reporting this post:");
+    if (!reason) return;
+
+    try {
+        await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/posts/${id}/report`,
+        { reason },
+        { withCredentials: true }
+        );
+        enqueueSnackbar("Post reported successfully", { variant: "success" });
+    } catch (error) {
+        enqueueSnackbar("Failed to report post", { variant: "error" });
+        console.error(error);
+    }
+    };
     const handleLike = () => {
         if (!likedState) {
             axios.post(`${process.env.REACT_APP_API_BASE_URL}/posts/${id}/like`, {}, { withCredentials: true })
@@ -168,6 +189,9 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 {/* Share Button */}
                 <Button size="small" color="inherit" onClick={handleShare} startIcon={<ShareIcon />}>
                 </Button>
+                <IconButton onClick={handleReport} color="error">
+                    <FlagIcon />
+                </IconButton>
             </CardActions>
         </Card>
     );

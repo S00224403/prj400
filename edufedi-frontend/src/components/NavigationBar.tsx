@@ -94,6 +94,20 @@ const NavigationBar: React.FC = () => {
           >
             Notifications
           </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<DescriptionIcon />}
+            href="/moderation"
+            sx={{
+              color: "inherit",
+              justifyContent: "flex-start",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.04)" },
+              marginBottom: "10px",
+            }}
+          >
+            Moderation
+          </Button>
           </Box>
         </Box>
       </Box>

@@ -13,7 +13,7 @@ const Footer: React.FC = () => {
             <Link href="/about" color="inherit" underline="hover">
               About
             </Link>
-            <Link href="https://github.com/your-repo/edufedi-frontend" color="inherit" underline="hover">
+            <Link href="https://github.com/S00224403/prj400" color="inherit" underline="hover">
               Source Code
             </Link>
           </Box>
