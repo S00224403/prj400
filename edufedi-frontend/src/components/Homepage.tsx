@@ -28,22 +28,7 @@ const Homepage: React.FC = (): React.ReactElement => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [showLogin, setShowLogin] = useState<boolean>(false);
   const [showSignup, setShowSignup] = useState<boolean>(false);
-  const [addPostOpen, setAddPostOpen] = useState(false);
-
-  useEffect(() => {
-    axios.get(`${process.env.REACT_APP_API_BASE_URL}/auth/me`, { withCredentials: true })
-      .then((res) => {
-        console.log(res);
-        setUser(res.data.user);
-        setIsLoggedIn(true);
-      })
-      .catch(() => {
-        
-        setUser(null);
-        setIsLoggedIn(false);
-      });
-  }, []);
-  
+  const [addPostOpen, setAddPostOpen] = useState(false);  
   
   useEffect(() => {
     if (isLoggedIn) {

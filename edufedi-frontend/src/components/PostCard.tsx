@@ -8,6 +8,7 @@ import {
     Avatar,
     Button,
 } from "@mui/material";
+import DescriptionIcon from "@mui/icons-material/Description";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbUpAltOutlinedIcon from "@mui/icons-material/ThumbUpAltOutlined";
 import RepeatIcon from "@mui/icons-material/Repeat";
@@ -17,7 +18,7 @@ import ShareIcon from "@mui/icons-material/Share";
 import { Post } from "../interface";
 import axios from "axios";
 
-const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked, repost_count, reposted }) => {
+const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_count, liked, repost_count, reposted, attachments }) => {
     const [likedState, setLikedState] = useState(liked);
     const [likeCount, setLikeCount] = useState(Number(like_count));
     const [repostState, setRepostedState] = useState(reposted );
@@ -116,7 +117,23 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 <Typography variant="body1" sx={{ marginBottom: "10px", cursor: "pointer"  }} onClick={() => window.location.href = `/users/${username}/posts/${id}`}>
                     {renderContentWithHashtags(content)}
                 </Typography>
-
+                {attachments?.map(att => (
+                <Box key={att.id} sx={{ mt: 2 }}>
+                    {att.file_type === 'document' && (
+                    <a 
+                        href={att.file_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                        <DescriptionIcon />
+                        <Typography variant="body2">
+                        Research Paper: {att.file_url.split('/').pop()}
+                        </Typography>
+                    </a>
+                    )}
+                </Box>
+                ))}
                 {/* Timestamp */}
                 <Typography variant="caption" color="textSecondary">
                     {new Date(created).toLocaleString()}

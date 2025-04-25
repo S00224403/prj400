@@ -44,4 +44,22 @@ export interface User {
     liked: boolean;
     repost_count: number;
     reposted: boolean;
+    attachments?: Array<{  // Add this
+      id: number;
+      file_url: string;
+      file_type: string;
+    }>;
+  }
+  export interface SearchResult {
+    users: Array<{
+      username: string;
+      name: string;
+      url: string;
+    }>;
+    posts: Array<{
+      id: number;
+      content: string;
+      created: string;
+      username: string;
+    }>;
   }

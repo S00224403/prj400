@@ -14,6 +14,7 @@ import {
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import MenuIcon from "@mui/icons-material/Menu";
 import NavigationBar from "./NavigationBar";
+import SearchBar from "./SearchBar";
 
 interface HeaderProps {
   isLoggedIn: boolean;
@@ -58,16 +59,21 @@ const Header: React.FC<HeaderProps> = ({ isLoggedIn, onLogout }) => {
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           EduFedi
         </Typography>
-
+        
+        
         {/* Conditional Login/Profile */}
         {isLoggedIn ? (
           <>
+            {/* Search Bar */}
+            <Box sx={{ p: 2, borderRadius: 1, display: { xs: "none", md: "block" } }}>
+                <SearchBar />
+            </Box>
             <IconButton color="inherit" onClick={handleMenuOpen}>
               <AccountCircleIcon />
             </IconButton>
+            
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
               <MenuItem onClick={handleMenuClose}>My Profile</MenuItem>
-              <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
               <MenuItem
                 onClick={() => {
                   handleMenuClose();

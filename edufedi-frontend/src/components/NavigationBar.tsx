@@ -39,7 +39,7 @@ const NavigationBar: React.FC = () => {
           <Button
             fullWidth
             variant="text"
-            href="/timeline"
+            href="/"
             startIcon={<HomeIcon />}
             sx={{
               color: "inherit",
@@ -53,7 +53,7 @@ const NavigationBar: React.FC = () => {
           <Button
             fullWidth
             variant="text"
-            href="/timeline"
+            href="/"
             startIcon={<ExploreIcon />}
             sx={{
               color: "inherit",
@@ -67,7 +67,6 @@ const NavigationBar: React.FC = () => {
           <Button
             fullWidth
             variant="text"
-            href="/research"
             startIcon={<DescriptionIcon />}
             sx={{
               color: "inherit",
@@ -81,7 +80,6 @@ const NavigationBar: React.FC = () => {
           <Button
             fullWidth
             variant="text"
-            href="/notifications"
             startIcon={
               <Badge badgeContent={notificationCount} color="primary">
                 <NotificationsIcon />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Box,
   TextField,
@@ -22,37 +22,35 @@ interface AddPostProps {
 
 const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
   const [postContent, setPostContent] = useState("");
-  const [image, setImage] = useState<File | null>(null);
- 
-
+  const [file, setFile] = useState<File | null>(null);
+  const inputFileRef = useRef<HTMLInputElement>(null);
+  const [filename, setFilename] = useState("");
 
   const maxCharacters = 500;
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setImage(event.target.files[0]);
+      setFile(event.target.files[0]);
+      setFilename(event.target.files[0].name);
     }
   };
 
+  const handleImageButtonClick = () => {
+    inputFileRef.current?.click();
+  };
+  
   const handleSubmit = () => {
     const formData = new FormData();
     formData.append("content", postContent);
-    if (image) {
-      formData.append("image", image);
-    }
-    formData.append("username", currentUser.username);
-
-
-    axios
-      .post(`${process.env.REACT_APP_API_BASE_URL}/users/${currentUser.username}/posts`, formData, { withCredentials: true })
-      .then((response) => {
-        console.log("Post successful:", response.data);
-        setPostContent(""); // Clear text field
-        setImage(null); // Clear image
-      })
-      .catch((error) => {
-        console.error("Error posting:", error);
-      });
+    if (file) formData.append("file", file); // Use "file" as field name
+  
+    axios.post(
+      `${process.env.REACT_APP_API_BASE_URL}/users/${currentUser.username}/posts`,
+      formData,
+      { withCredentials: true }
+    )
+    .then(() => { setPostContent(""); setFile(null); })
+    .catch(console.error);
   };
 
   return (
@@ -126,33 +124,33 @@ const AddPost: React.FC<AddPostProps> = ({ isMobile, currentUser }) => {
       {/* Character Counter */}
       <Typography variant="body2" color={postContent.length > maxCharacters ? "error" : "inherit"}>
             {postContent.length}/{maxCharacters}
-      </Typography>  
+      </Typography> 
+      {/* Hidden file input */}
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,image/*"
+        style={{ display: "none" }}
+        ref={inputFileRef}
+        onChange={handleFileUpload}
+      />
       {/* Action Buttons */}
       <Box display="flex" alignItems="center" justifyContent="space-between">
-        {/* Left Buttons */}
-        <Box display="flex" alignItems="center" gap={1}>
-          <Button
-            startIcon={<PublicIcon />}
-            sx={{
-              textTransform: "none",
-              color: "#6200ea", // Purple accent for button text
-              "&:hover": { backgroundColor: "#f7f7f7" }, // Hover effect for buttons
-            }}
-          >
-            Public
-          </Button>
-        </Box>
-
+        
         {/* Right Buttons */}
         <Box display="flex" alignItems="center" gap={1}>
-          <IconButton sx={{ color: "#6200ea" }}>
+          <IconButton sx={{ color: "#6200ea" }} onClick={handleImageButtonClick}>
             <ImageIcon />
           </IconButton>
           <IconButton sx={{ color: "#6200ea" }}>
             <EmojiEmotionsIcon />
           </IconButton>
         </Box>
-        
+        {/* Show selected file */}
+        {filename && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Selected: {filename}
+          </Typography>
+        )}
       </Box>
       {/* Submit Button */}
       <Button
