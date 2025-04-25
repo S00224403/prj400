@@ -111,34 +111,8 @@ const Homepage: React.FC = (): React.ReactElement => {
           ) : (
             <Box sx={{ width: "100%", maxWidth: 400 }}>
               <Stack direction="row" spacing={2} justifyContent="center" mb={2}>
-                <Typography variant="h6">Welcome! Please log in or sign up.</Typography>
+                <Typography variant="h6">Welcome! Please log in or sign up to view posts.</Typography>
               </Stack>
-              {showLogin && (
-                <Login
-                  onLoginSuccess={() => {
-                    setIsLoggedIn(true);
-                    setShowLogin(false);
-                  }}
-                />
-              )}
-              {showSignup && (
-                <Signup
-                  onSignupSuccess={() => {
-                    setShowSignup(false);
-                    setShowLogin(true);
-                  }}
-                />
-              )}
-              {!showLogin && !showSignup && (
-                <Stack direction="row" spacing={2} justifyContent="center" mt={2}>
-                  <Box>
-                    <Button onClick={() => { setShowLogin(true); setShowSignup(false); }}>Login</Button>
-                  </Box>
-                  <Box>
-                    <Button onClick={() => { setShowSignup(true); setShowLogin(false); }}>Sign Up</Button>
-                  </Box>
-                </Stack>
-              )}
             </Box>
           )}
         </Grid>
