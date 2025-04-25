@@ -183,7 +183,11 @@ const PostCard: React.FC<Post> = ({ id, name, username, content, created, like_c
                 </Button>
 
                 {/* Reply Button */}
-                <Button size="small" color="inherit" startIcon={<ReplyIcon />}>
+                <Button 
+                    size="small" 
+                    color="inherit" 
+                    onClick={() => window.location.href = `/users/${username}/posts/${id}`}
+                    startIcon={<ReplyIcon />}>
                 </Button>
 
                 {/* Share Button */}

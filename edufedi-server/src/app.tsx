@@ -601,13 +601,10 @@ app.delete("/api/posts/:postId/repost", async (c) => {
 
 app.post("/api/posts/:postId/comments", async (c) => {
   if (!(c as any).user) return c.text("Unauthorized", 401);
-  const postId = Number(c.req.param("postId"));
-  const userId = (c as any).user.id;
-  const { content } = await c.req.json();
 
-  if (!content || typeof content !== "string" || !content.trim()) {
-    return c.text("Invalid content", 400);
-  }
+  const postId = Number(c.req.param("postId"));
+  const { content, parent_comment_id } = await c.req.json();
+  const userId = (c as any).user.id;
 
   // Get actor_id for this user
   const actorResult = await pool.query(
@@ -615,26 +612,25 @@ app.post("/api/posts/:postId/comments", async (c) => {
     [userId]
   );
   const actor = actorResult.rows[0];
-  if (!actor) return c.text("Actor not found", 404);
 
   await pool.query(
-    `INSERT INTO comments (post_id, actor_id, content) VALUES ($1, $2, $3)`,
-    [postId, actor.id, content]
+    `INSERT INTO comments (post_id, actor_id, content, parent_comment_id)
+     VALUES ($1, $2, $3, $4)`,
+    [postId, actor.id, content, parent_comment_id || null]
   );
+
   return c.json({ success: true });
 });
 app.get("/api/posts/:postId/comments", async (c) => {
   const postId = Number(c.req.param("postId"));
-  const result = await pool.query(
-    `SELECT comments.*, actors.name, users.username
-     FROM comments
-     JOIN actors ON comments.actor_id = actors.id
-     JOIN users ON actors.user_id = users.id
-     WHERE comments.post_id = $1
-     ORDER BY comments.created ASC`,
-    [postId]
-  );
-  
+  const result = await pool.query(`
+    SELECT comments.*, users.username, actors.name
+    FROM comments
+    JOIN actors ON comments.actor_id = actors.id
+    JOIN users ON actors.user_id = users.id
+    WHERE comments.post_id = $1
+    ORDER BY comments.created ASC
+  `, [postId]);
   return c.json(result.rows);
 });
 

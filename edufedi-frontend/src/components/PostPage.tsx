@@ -15,6 +15,7 @@ import AddPost from "./AddPost";
 import Header from "./Header";
 import { useAuth } from "./AuthContext"; // If using AuthContext
 import axios from "axios";
+import Comments from "./Comments";
 
 const PostPage: React.FC = () => {
   const { postId } = useParams();
@@ -106,7 +107,8 @@ const PostPage: React.FC = () => {
           >
             <PostCard {...post} />
             <Box mt={4}>
-              <Typography variant="h6">Replies</Typography>
+              <Comments postId={Number(postId)} />
+              {/* <Typography variant="h6">Replies</Typography>
               <Stack spacing={2} mt={2}>
                 {comments.length === 0 ? (
                   <Typography>No replies yet.</Typography>
@@ -120,7 +122,7 @@ const PostPage: React.FC = () => {
                     </Box>
                   ))
                 )}
-              </Stack>
+              </Stack> */}
             </Box>
             {/* Add reply form here if desired */}
           </Box>
