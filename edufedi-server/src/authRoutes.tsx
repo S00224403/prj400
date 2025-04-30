@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { get } from "http";
 import { cors } from "hono/cors";
-
+import { generateCryptoKeyPair, exportJwk } from "@fedify/fedify";
 const authRoutes = new Hono();
 const allowedOrigins = [
   "http://localhost:3000",
@@ -91,6 +91,22 @@ authRoutes.post("/signup", async (c) => {
       [authUserId, actorUri, actorHandle, display_name, inboxUrl, shared_inbox_url, url]
     );
 
+
+    // Generate and store keys
+    const keyTypes = ["RSASSA-PKCS1-v1_5", "Ed25519"] as const;
+    for (const keyType of keyTypes) {
+      const { privateKey, publicKey } = await generateCryptoKeyPair(keyType);
+      await pool.query(
+        `INSERT INTO keys (user_id, type, private_key, public_key)
+        VALUES ($1, $2, $3, $4)`,
+        [
+          authUserId,
+          keyType,
+          JSON.stringify(await exportJwk(privateKey)),
+          JSON.stringify(await exportJwk(publicKey)),
+        ]
+      );
+    }
     return c.json({
       message: "User and actor created successfully",
       userId: userResult.rows[0].id,
